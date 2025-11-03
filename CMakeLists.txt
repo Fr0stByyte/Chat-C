@@ -6,7 +6,8 @@ set(CMAKE_C_STANDARD 11)
 add_executable(Chat_C
         main.c
         Server.c
-        Server.h
         Messages.c
-        Messages.h
+        Client.c
+        Requests.c
+        Chat_C.h
 )

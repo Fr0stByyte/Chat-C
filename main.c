@@ -1,44 +1,58 @@
 //
 // Created by kroff on 10/17/2025.
-#include <stdlib.h>
-#include <pthread.h>
 #include <stdio.h>
 #include <string.h>
-#include <sys/socket.h>
 
-#include "Messages.h"
-#include "Server.h"
+#include  "Chat_C.h"
+
+void handleJoin() {
+    char ip[16];
+    int port;
+    uint8_t name[24];
+    uint32_t color;
+
+    printf("enter the ip of the server you wish to connect to: ");
+    scanf("%s", ip);
+    printf("enter the port of the server you wish to connect: ");
+    scanf("%d", &port);
+    printf("enter your username: ");
+    scanf("%s", name);
+    printf("enter the your color: ");
+    scanf("%d", &color);
+
+    int socket = createClientSocket(ip, port);
+    if (socket > 0) {
+        printf("connected to server successfully!\n");
+        initClient(socket, sizeof(name), name, color);
+    } else {
+        printf("socket creation failed!\n");
+        return;
+    }
+}
+
+void handleCreate() {
+    int port;
+    int maxClients;
+
+    printf("enter the port number to listen on: ");
+    scanf("%d", &port);
+    printf("enter the max client number: ");
+    scanf("%d", &maxClients);
+
+    printf("listening for connections on port: %d; %d max clients allowed...\n", port, maxClients);
+    int sock = createServerSocket(port);
+    initServer(sock, maxClients);
+}
 
 int main() {
-    // while (1) {
-    //     char choice[24];
-    //     printf("Welcome to Chat-C! type 'join' to join a room, or 'create' to create a room!\n");
-    //     scanf("%s", choice);
-    //     if (strcmp(choice, "join") == 0) {
-    //         char ip[24];
-    //         char name[24];
-    //         int color;
-    //
-    //         printf("enter the ip of the server you wish to connect to: ");
-    //         scanf("%s", ip);
-    //         printf("enter your username: ");
-    //         scanf("%s", name);
-    //         printf("enter the your color: ");
-    //         scanf("%d", &color);
-    //
-    //     } else if (strcmp(choice, "create") == 0) {
-    //
-    //     } else if (strcmp(choice, "exit") == 0) break;
-    //     else printf("invalid option, please try again!\n");
-    // }
-    int sock = createServerSocket(8080);
-    printf("Socket created: %d\n", sock);
-    ThreadData thread_data = {
-        .doListen = 1,
-        .sockFd = sock
-    };
-    pthread_t tid;
-    pthread_create(&tid, NULL, handleConnections, &thread_data);
-    pthread_join(tid, NULL);
+    while (1) {
+        char choice[24];
+        printf("Welcome to Chat-C! type 'join' to join a room, or 'create' to create a room! Type 'exit' to exit the program!\n");
+        scanf("%s", choice);
+        if (strcmp(choice, "join") == 0) handleJoin();
+        if (strcmp(choice, "create") == 0) handleCreate();
+        if (strcmp(choice, "exit") == 0) break;
+    }
+    printf("Exiting!\n");
     return 0;
 }
