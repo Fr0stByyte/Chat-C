@@ -19,7 +19,7 @@ void Serialize(Message* message, uint8_t data[1024]) {
     memcpy(data + 12, message->header, message->headerLength);
     memcpy(data + 12 + message->headerLength, message->body, message->bodyLength);
 }
-Message Deserialize(uint8_t data[1024], ssize_t dataSize, int* signal) {
+Message Deserialize(uint8_t data[1024], ssize_t dataSize) {
     uint32_t timeStamp;
     uint32_t headerLength;
     uint32_t messageLength;
@@ -34,13 +34,11 @@ Message Deserialize(uint8_t data[1024], ssize_t dataSize, int* signal) {
     message.bodyLength = ntohl(messageLength);
 
     if (12 + message.headerLength + message.bodyLength > dataSize) {
-        *signal = -1;
         return message;
     }
 
     memcpy(message.header, data + 12, message.headerLength);
     memcpy(message.body, data + 12 + message.headerLength, message.bodyLength);
-    *signal = 0;
     return message;
 }
 void ClearBuffer(uint8_t buffer[1024], size_t size) {
