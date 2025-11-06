@@ -61,7 +61,7 @@ void Serialize(Message* message, uint8_t data[1024]);
  * @param[out] signal pointer for variable that will store errors
  * @return message struct with deserialized values
  */
-Message Deserialize(uint8_t data[1024], ssize_t dataSize, int* signal);
+Message Deserialize(uint8_t data[1024], ssize_t dataSize);
 
 /**
  * creates a message struct storing the correctly formated parameters. allocated on the stack.
@@ -86,21 +86,24 @@ void ClearBuffer(uint8_t buffer[1024], size_t size);
  * @param client client object that message was received from
  * @param message message struct conating message data client sent
  */
-void ServerReceiveGlobalMessage(Client* client, Message* message);
+void ServerReceiveGlobalMessage(Client* client, ClientList* clientlist, Message* message);
 
 /**
  *occurs when a client receives a message relayed to it from the server
  * @param client client from which the message originated from
  * @param message message data to be displayed
  */
-void ClientReceiveGlobalMessage(Client* client, Message* message);
+void ClientReceiveGlobalMessage(Message* message);
 
 /**
  * handles request sent to client to connect to a room
  * @param client client that wishes to connect
  * @param message connection data (text color, name)
  */
-void ReceiveJoinRequest(Client* client, Message* message);
+void ServerReceiveJoinRequest(Client* client, ClientList* clients, Message* message);
+void ServerReceiveDisconnectRequest(Client* client, ClientList* client_list);
+void ServerReceivePrivateMessage(Client* client, ClientList* client_list, Message* message);
+void removeClientFromList(ClientList* client_list, Client* client);
 /**
  * creates a complete socket from the given port, oskcet is bound and listening
  * @param[in] port port number the server should listen on

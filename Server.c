@@ -36,16 +36,16 @@ void initServer(int socket, int maxClients) {
     pthread_join(tid, NULL);
 }
 void* handleConnections(void* data) {
-    while (doListen ==1) {
+    while (1) {
         struct sockaddr_in client_addr;
         socklen_t client_addr_size = sizeof(client_addr);
 
         printf("listening on port:\n");
-        int clientSocket = accept(serverSockFd, (struct sockaddr*)&client_addr, &client_addr_size);
+        int clientSocket = accept(serverSockFd, (struct sockaddr*)&client_addr, &client_addr_size); // yeilds thread
         printf("accepted client connection");
-        Client* newClient = CreateClient(clientSocket, client_addr);
+        Client* newClient = CreateClient(clientSocket, client_addr); // create user client
         pthread_t tid;
-        pthread_create(&tid, NULL, handleClient, newClient);
+        pthread_create(&tid, NULL, handleClient, newClient); // spawn new thread to handle communication with client
         pthread_detach(tid);
     }
     return NULL;
@@ -54,24 +54,15 @@ void* handleClient(void* data) {
     Client* client = (Client*)data;
     uint8_t buffer[1024];
     ssize_t dataSize = recv(client->clientFd, buffer, sizeof(buffer), 0);
-    int signal;
-    Message clientMessage = Deserialize(buffer, dataSize, &signal);
-    if (signal == 0) ProcessRequest(&clientMessage, client);
+    Message clientMessage = Deserialize(buffer, dataSize);
+    ProcessRequest(&clientMessage, client);
     return NULL;
 }
 void ProcessRequest(Message* receivedMessage, Client* client) {
-    if (strcmp((char*)receivedMessage->header, "SEND GLOBAL") == 0) {
-        uint8_t header[] = "RECEIVE GLOBAL";
-        Message messageToSend = createMessage(time(NULL), sizeof(header), receivedMessage->bodyLength, header, receivedMessage->body);
-
-        uint8_t buffer[1024];
-        Serialize(&messageToSend, buffer);
-
-        for (int i = 0; i < clients->size; i++) {
-            send(clients->clientBuffer[i]->clientFd, buffer, sizeof(buffer), 0);
-        }
-    }
-    if (strcmp((char*)receivedMessage->header, "REQUEST CONNECT") == 0) ReceiveJoinRequest(client, receivedMessage);
+    if (strcmp((char*)receivedMessage->header, "SEND GLOBAL") == 0) ServerReceiveGlobalMessage(client, clients, receivedMessage);
+    if (strcmp((char*)receivedMessage->header, "REQUEST CONNECT") == 0) ServerReceiveJoinRequest(client, clients, receivedMessage);
+    if (strcmp((char*)receivedMessage->header, "RECEIVE DISCONNECT") == 0) ServerReceiveDisconnectRequest(client, clients);
+    if (strcmp((char*)receivedMessage->header, "SEND PRIVATE") == 0) ServerReceivePrivateMessage(client, clients, receivedMessage);
 }
 ClientList* CreateClientList(int capacity) {
     ClientList* clientList = (ClientList*)malloc(sizeof(ClientList));
@@ -95,4 +86,22 @@ void addClientToList(ClientList* clientList, Client* client) {
     clientList->clientBuffer[clientList->size] = client;
     clientList->size++;
     pthread_mutex_unlock(&clientList->mutexLock);
+}
+
+void removeClientFromList(ClientList* client_list, Client* client) {
+    pthread_mutex_lock(&client_list->mutexLock);
+
+    int targetIndex = -1;
+    for (int i = 0; i < client_list->size; i++) {
+        if (client_list->clientBuffer[i] == client) {
+            targetIndex = i;
+        }
+    }
+    if (targetIndex == -1) return;
+    free(client_list->clientBuffer[targetIndex]);
+    for (int i = targetIndex; i < client_list->size; i++) {
+        client_list->clientBuffer[i] = client_list->clientBuffer[i + 1];
+    }
+    client_list->size -= 1;
+    pthread_mutex_unlock(&client_list->mutexLock);
 }
