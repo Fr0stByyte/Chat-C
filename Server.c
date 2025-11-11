@@ -15,19 +15,25 @@ int doListen = 1;
 ClientList* clients;
 
 int createServerSocket(int port) {
+    //creates sockaddr struct
     struct sockaddr_in server_addr;
     server_addr.sin_family = AF_INET;
     server_addr.sin_addr.s_addr = INADDR_ANY;
     server_addr.sin_port = htons(port);
 
-
+    //create file descriptor for use
     int sockfd = socket(AF_INET, SOCK_STREAM, 0);
+
+    //do some checks
     if (sockfd == -1) return -1;
     if (bind(sockfd, (struct sockaddr*)&server_addr, sizeof(server_addr)) == -1) return -1;
+    //listen on the socket for connections, non-blocking thankfully
     listen(sockfd, SOMAXCONN);
     return sockfd;
 }
 void initServer(int socket, int maxClients) {
+
+    //initiaizes global variables and thread
     serverSockFd = socket;
     clients = CreateClientList(maxClients);
 
@@ -36,6 +42,7 @@ void initServer(int socket, int maxClients) {
     pthread_join(tid, NULL);
 }
 void* handleConnections(void* data) {
+    //TODO: add break condition
     while (1) {
         struct sockaddr_in client_addr;
         socklen_t client_addr_size = sizeof(client_addr);
