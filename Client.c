@@ -22,17 +22,20 @@ int createClientSocket(char ip[16], int port) {
    return clientFd;
 }
 void initClient(int socket, uint32_t nameLength, uint8_t clientName[], uint32_t clientColor) {
-   uint32_t newColor = htonl(clientColor);
-   uint32_t newLength = htonl(nameLength);
 
    uint8_t header[] = "REQUEST CONNECT";
-   uint8_t body[256];
+   uint8_t recipient[] = "SERVER";;
 
-   memcpy(body, &newColor, 4);
-   memcpy(body + 4, &newLength, 4);
-   memcpy(body + 8, &clientName, nameLength);
-
-   Message message = createMessage(time(NULL), sizeof(header), sizeof(body), header, body);
+   Message message = createMessage(time(NULL),
+      nameLength,
+      sizeof(recipient),
+      sizeof(header),
+      0,
+      clientColor,
+      clientName,
+      recipient,
+      header,
+      NULL);
 
    uint8_t buffer[1024];
    Serialize(&message, buffer);
@@ -40,7 +43,6 @@ void initClient(int socket, uint32_t nameLength, uint8_t clientName[], uint32_t 
    ClearBuffer(buffer, 1024);
    ssize_t returnedMessageSize = recv(socket, buffer, sizeof(buffer), 0);
    if (returnedMessageSize == -1) printf("uh oh bad return");
-   int signal;
-   Message receivedMessage = Deserialize(buffer, returnedMessageSize, &signal);
+   Message receivedMessage = Deserialize(buffer, returnedMessageSize);
    printf("connection successful? %s\n", (char*)receivedMessage.header);
 }
