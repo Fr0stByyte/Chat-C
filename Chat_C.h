@@ -26,8 +26,14 @@ typedef struct {
 
 typedef struct {
     uint32_t timeStamp;
+    uint32_t senderLength;
+    uint32_t recipientLength;
     uint32_t headerLength;
     uint32_t bodyLength;
+    uint32_t color;
+
+    uint8_t senderName[24];
+    uint8_t recipientName[24];
     uint8_t header[24];
     uint8_t body[256];
 } Message;
@@ -66,13 +72,15 @@ Message Deserialize(uint8_t data[1024], ssize_t dataSize);
 /**
  * creates a message struct storing the correctly formated parameters. allocated on the stack.
  * @param[in] timeStamp time stamp that tells when the message was sent
+ * @param senderLength length of name of sender
+ * @param recipientLength length of name of recipient
  * @param[in] headerLength size of the header array (be sure to use sizeof(), not strlen()
  * @param[in] bodyLength size of body array (be sure to use sizeof(), not strlen()
  * @param[in] header array that stores the header, should be null terminated
  * @param[in] body array that stores the body, should be null terminated
  * @return message struct contain properly formatted data from parameters
  */
-Message createMessage(uint32_t timeStamp, uint32_t headerLength, uint32_t bodyLength, uint8_t header[], uint8_t body[]);
+Message createMessage(uint32_t timeStamp, uint32_t senderLength, uint32_t recipientLength, uint32_t headerLength, uint32_t bodyLength, uint32_t color, uint8_t sender[], uint8_t recipient[],  uint8_t header[], uint8_t body[]);
 
 /**
  * clears a buffer, probs won't use tho
