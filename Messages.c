@@ -13,7 +13,7 @@ void Serialize(Message* message, uint8_t data[1024]) {
     uint32_t messageLength = htonl(message->bodyLength);
     uint32_t senderLength = htonl(message->senderLength);
     uint32_t recipientLength = htonl(message->recipientLength);
-    uint8_t color = htonl(message->color);
+    uint32_t color = htonl(message->color);
 
     //copy descriptor variables into a blank data buffer
     memcpy(data, &timeStamp, 4);
@@ -53,6 +53,7 @@ Message Deserialize(uint8_t data[1024], ssize_t dataSize) {
     message.recipientLength = ntohl(recipientLength);
     message.headerLength = ntohl(headerLength);
     message.bodyLength = ntohl(messageLength);
+    message.color = ntohl(color);
 
     //copy message data to struct using sizes determined by the descriptor variables
     memcpy(message.senderName, data + 24, message.senderLength);
