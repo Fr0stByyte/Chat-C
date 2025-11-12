@@ -60,7 +60,12 @@ void* handleConnections(void* data) {
 void* handleClient(void* data) {
     Client* client = (Client*)data;
     uint8_t buffer[1024];
-    ssize_t dataSize = recv(client->clientFd, buffer, sizeof(buffer), 0);
+    ssize_t dataSize;
+    while((dataSize = recv(client->clientFd, buffer, sizeof(buffer), 0)) > 0)
+    {
+        Message clientMessage = Deserialize(buffer, dataSize);
+        ProcessRequest(&clientMessage, client);
+    }
     Message clientMessage = Deserialize(buffer, dataSize);
     ProcessRequest(&clientMessage, client);
     return NULL;
