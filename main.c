@@ -7,22 +7,18 @@
 
 void handleJoin() {
     char ip[16];
-    int port;
     uint8_t name[24];
     uint32_t color;
 
     printf("enter the ip of the server you wish to connect to: ");
     scanf("%s", ip);
-    printf("enter the port of the server you wish to connect: ");
-    scanf("%d", &port);
     printf("enter your username: ");
     scanf("%s", name);
     printf("enter the your color: ");
     scanf("%d", &color);
 
-    int socket = createClientSocket(ip, port);
+    int socket = createClientSocket(ip);
     if (socket > 0) {
-        printf("connected to server successfully!\n");
         initClient(socket, sizeof(name), name, color);
     } else {
         printf("socket creation failed!\n");
@@ -31,23 +27,19 @@ void handleJoin() {
 }
 
 void handleCreate() {
-    int port;
     int maxClients;
-
-    printf("enter the port number to listen on: ");
-    scanf("%d", &port);
     printf("enter the max client number: ");
     scanf("%d", &maxClients);
 
-    printf("listening for connections on port: %d; %d max clients allowed...\n", port, maxClients);
-    int sock = createServerSocket(port);
+    printf("listening for connections on port: 8080; %d max clients allowed...\n", maxClients);
+    int sock = createServerSocket();
     initServer(sock, maxClients);
 }
 
 int main() {
     while (1) {
         char choice[24];
-        printf("Welcome to Chat-C! type 'join' to join a room, or 'create' to create a room! Type 'exit' to exit the program!\n");
+        printf("Welcome to Chat-C! type 'join' to join a room, or 'create' to create a room! Type 'exit' to exit the program! ");
         scanf("%s", choice);
         if (strcmp(choice, "join") == 0) handleJoin();
         if (strcmp(choice, "create") == 0) handleCreate();

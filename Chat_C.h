@@ -40,10 +40,9 @@ typedef struct {
 /**
  * creates a socket and connects it to a server, used to establish a connection
  * @param[in] ip ip address the client will connect too
- * @param[in] port port the client will connect to
  * @return returns a socket if a sucessful connection was made, else returns -1
  */
-int createClientSocket(char ip[16], int port);
+int createClientSocket(char ip[16]);
 
 /**
  * initializes the client and sends data to the server requesting to join the chatroom
@@ -114,10 +113,9 @@ void ServerReceivePrivateMessage(Client* client, ClientList* client_list, Messag
 void removeClientFromList(ClientList* client_list, Client* client);
 /**
  * creates a complete socket from the given port, oskcet is bound and listening
- * @param[in] port port number the server should listen on
  * @returns server's socket
  */
-int createServerSocket(int port);
+int createServerSocket();
 /**
  * handles data coming in from a client, should be on its own thread.
  * @param[in] data pointer to a client object (casted to a void pointer)

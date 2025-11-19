@@ -7,38 +7,84 @@
 #include <time.h>
 #include <arpa/inet.h>
 #include <pthread.h>
+#include <stdlib.h>
+
 #include "Chat_C.h"
+uint8_t clientName[24];
+uint32_t nameSize;
+uint32_t clientColor;
+int isAllowed = 1;
 
-void sendChatMessages(int socket, uint8_t clientName[], uint32_t clientColor) {
+void sendChatMessages(int socket) {
     char messageText[256];
-    uint8_t header[] = "SEND GLOBAL";
-    uint8_t recipient[] = "SERVER";
-
-    while (1) {
+    while (isAllowed == 1) {
         fgets(messageText, sizeof(messageText), stdin);
         messageText[strcspn(messageText, "\n")] = '\0'; // remove newline
 
-        if (strcmp(messageText, "exit") == 0) {
+        if (strcmp(messageText, "#exit") == 0) {
+            uint8_t recipient[] = "SERVER";
+            uint8_t leaveHeader[] = "SEND DISCONNECT";
+            Message leaveMSg = createMessage(
+                time(NULL),
+                sizeof(clientName),
+                sizeof(recipient),
+                sizeof(leaveHeader),
+                0,
+                0,
+                clientName,
+                recipient,
+                leaveHeader,
+                NULL
+            );
+            uint8_t buffer[1024];
+            Serialize(&leaveMSg, buffer);
+            send(socket, buffer, sizeof(buffer), 0);
             printf("Disconnecting...\n");
             break;
         }
+        if (strcmp(messageText, "#pm") == 0) {
+            char recipient[24];
+            char msg[256];
+            uint8_t privateHeader[] = "SEND PRIVATE";
+            printf("enter recepient name: ");
+            fgets(recipient, sizeof(recipient), stdin);
+            printf("enter message: ");
+            fgets(msg, sizeof(msg), stdin);
 
-        Message msg = createMessage(
-            time(NULL),
-            strlen((char*)clientName),
-            strlen((char*)recipient),
-            strlen((char*)header),
-            strlen(messageText),
-            clientColor,
-            clientName,
-            recipient,
-            header,
-            (uint8_t*)messageText
-        );
-
-        uint8_t buffer[1024];
-        Serialize(&msg, buffer);
-        send(socket, buffer, sizeof(buffer), 0);
+            Message privateMessage = createMessage(
+                time(NULL),
+                nameSize,
+                sizeof(recipient),
+                sizeof(privateHeader),
+                sizeof(msg),
+                clientColor,
+                clientName,
+                (uint8_t*)recipient,
+                privateHeader,
+                (uint8_t*)msg
+            );
+            uint8_t buffer[1024];
+            Serialize(&privateMessage, buffer);
+            send(socket, buffer, sizeof(buffer), 0);
+        } else{
+            uint8_t recipient[] = "ALL";
+            uint8_t header[] = "SEND GLOBAL";
+            Message msg = createMessage(
+                time(NULL),
+                nameSize,
+                sizeof(recipient),
+                sizeof(header),
+                sizeof(messageText),
+                clientColor,
+                clientName,
+                recipient,
+                header,
+                (uint8_t*)messageText
+            );
+            uint8_t buffer[1024];
+            Serialize(&msg, buffer);
+            send(socket, buffer, sizeof(buffer), 0);
+        }
     }
 }
 
@@ -54,21 +100,31 @@ void* receiveMessages(void* arg) {
         }
 
         Message msg = Deserialize(buffer, size);
-        if (strcmp((char*)msg.header, "RECEIVE GLOBAL") == 0) {
-            printf("[%s]: %s\n", msg.senderName, msg.body);
-        } else if (strcmp((char*)msg.header, "SUCCESS JOIN") == 0) {
-            printf("%s\n", msg.body);
+        if (strcmp((char*)msg.header, "RECEIVE GLOBAL") == 0 && strcmp((char*)msg.senderName, (char*)clientName) != 0) {
+            printf("[%s]: %s\n", (char*)msg.senderName, (char*)msg.body);
+        }
+        if (strcmp((char*)msg.header, "NEW JOIN") == 0 && strcmp((char*)msg.senderName, (char*)clientName) != 0) {
+            printf("[%s]: %s has joined the chatroom!\n", (char*)msg.senderName, (char*)msg.body);
+        }
+        if (strcmp((char*)msg.header, "FAIL JOIN") == 0 && strcmp((char*)msg.senderName, (char*)clientName) != 0) {
+            printf("SERVER REFUSED REQUEST, NAME IS WRONG!\n");
+
+        }
+        if (strcmp((char*)msg.header, "NEW LEAVE") == 0 && strcmp((char*)msg.senderName, (char*)clientName) != 0) {
+            printf("[%s]: %s has left the chatroom!\n", (char*)msg.senderName, (char*)msg.body);
+        }
+        if (strcmp((char*)msg.header, "RECEIVE PRIVATE") == 0 && strcmp((char*)msg.senderName, (char*)clientName) != 0) {
+            printf("[PRIVATE][%s]: %s\n", (char*)msg.senderName, (char*)msg.body);
         }
     }
-    
     return NULL;
 }
 
-int createClientSocket(char ip[16], int port) {
+int createClientSocket(char ip[16]) {
    struct sockaddr_in server;
    server.sin_family = AF_INET;
    if (inet_pton(AF_INET, ip, &server.sin_addr) <= 0) return -1;
-   server.sin_port = htons(port);
+   server.sin_port = htons(8080);
 
    int clientFd = socket(AF_INET, SOCK_STREAM, 0);
    if (clientFd == -1) return -1;
@@ -77,13 +133,16 @@ int createClientSocket(char ip[16], int port) {
    if (isConnected == -1) return -1;
    return clientFd;
 }
-void initClient(int socket, uint32_t nameLength, uint8_t clientName[], uint32_t clientColor) {
+void initClient(int socket, uint32_t userLength, uint8_t username[], uint32_t color) {
 
    uint8_t header[] = "REQUEST CONNECT";
    uint8_t recipient[] = "SERVER";
+    memcpy(clientName, username, userLength);
+    nameSize = userLength;
+    clientColor = color;
 
    Message message = createMessage(time(NULL),
-      nameLength,
+      nameSize,
       sizeof(recipient),
       sizeof(header),
       0,
@@ -96,21 +155,10 @@ void initClient(int socket, uint32_t nameLength, uint8_t clientName[], uint32_t 
    uint8_t buffer[1024];
    Serialize(&message, buffer);
    send(socket, buffer, sizeof(buffer), 0);
-   ClearBuffer(buffer, 1024);
-
-   ssize_t returnedMessageSize = recv(socket, buffer, sizeof(buffer), 0);
-   if (returnedMessageSize == -1) 
-   {
-      printf("BAD RETURN\n");
-      return;
-   }
-
-   Message receivedMessage = Deserialize(buffer, returnedMessageSize);
-   printf("CONNECTION SUCCESSFUL: %s\n", (char*)receivedMessage.header);
 
    pthread_t recvThread;
    pthread_create(&recvThread, NULL, receiveMessages, &socket);
    pthread_detach(recvThread);
 
-   sendChatMessages(socket, clientName, clientColor);
+   sendChatMessages(socket);
 }
