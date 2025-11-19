@@ -8,7 +8,10 @@
 #include <sys/socket.h>
 #include <stdlib.h>
 #include <string.h>
-#include "Chat_C.h"
+
+#include "../headers/Messages.h"
+#include "../headers/Clients.h"
+#include "../headers/Server.h"
 
 int serverSockFd;
 int doListen = 1;
@@ -76,47 +79,4 @@ void ProcessRequest(Message* receivedMessage, Client* client) {
     if (strcmp((char*)receivedMessage->header, "REQUEST CONNECT") == 0) ServerReceiveJoinRequest(client, clients, receivedMessage);
     if (strcmp((char*)receivedMessage->header, "SEND DISCONNECT") == 0) ServerReceiveDisconnectRequest(client, clients);
     if (strcmp((char*)receivedMessage->header, "SEND PRIVATE") == 0) ServerReceivePrivateMessage(client, clients, receivedMessage);
-}
-ClientList* CreateClientList(int capacity) {
-    //creates client list object to hold client objects
-    ClientList* clientList = (ClientList*)malloc(sizeof(ClientList));
-    clientList->clientBuffer = calloc(sizeof(Client*), capacity);
-    clientList->capacity = capacity;
-    clientList->size = 0;
-    pthread_mutex_init(&clientList->mutexLock, NULL);
-    return clientList;
-}
-Client* CreateClient(int clientFd, struct sockaddr_in clientAddress) {
-    //creates client object, then return
-    Client* client = (Client*)malloc(sizeof(Client));
-    client->clientFd = clientFd;
-    client->clientAddr = clientAddress;
-    client->isAllowed = 0;
-    return client;
-}
-void addClientToList(ClientList* clientList, Client* client) {
-    if (clientList->size >= clientList->capacity) return;
-
-    pthread_mutex_lock(&clientList->mutexLock);
-    clientList->clientBuffer[clientList->size] = client;
-    clientList->size++;
-    pthread_mutex_unlock(&clientList->mutexLock);
-}
-
-void removeClientFromList(ClientList* client_list, Client* client) {
-    pthread_mutex_lock(&client_list->mutexLock);
-
-    int targetIndex = -1;
-    for (int i = 0; i < client_list->size; i++) {
-        if (client_list->clientBuffer[i] == client) {
-            targetIndex = i;
-        }
-    }
-    if (targetIndex == -1) return;
-    free(client_list->clientBuffer[targetIndex]);
-    for (int i = targetIndex; i < client_list->size; i++) {
-        client_list->clientBuffer[i] = client_list->clientBuffer[i + 1];
-    }
-    client_list->size -= 1;
-    pthread_mutex_unlock(&client_list->mutexLock);
 }

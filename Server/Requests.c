@@ -6,9 +6,12 @@
 #include <pthread.h>
 #include <stdio.h>
 
-#include "Chat_C.h"
+#include "../headers/Server.h"
 #include <string.h>
 #include <time.h>
+
+#include "../headers/Messages.h"
+#include "../headers/Clients.h"
 
 
 void ServerReceiveGlobalMessage(Client* client, ClientList* client_list, Message* message) {
@@ -69,6 +72,7 @@ void ServerReceiveJoinRequest(Client* client, ClientList* client_list, Message* 
     client->isAllowed = 1;
 
     //adds client to global list of clients
+    client->isAllowed = 1;
     addClientToList(client_list, client);
 
     //create message to confirm client joining the room
@@ -102,16 +106,16 @@ void ServerReceiveDisconnectRequest(Client* client, ClientList* client_list) {
     uint8_t sender[] = "SERVER";
     uint8_t recipient[] = "ALL";
     Message messageToSend = createMessage(
-    time(NULL),
-    sizeof(sender), //sender should be player, not server
-    sizeof(recipient),
-    sizeof(header),
-    sizeof(client->name),
-    0,
-    sender,
-    recipient,
-    header,
-    (uint8_t*)client->name
+        time(NULL),
+        sizeof(sender), //sender should be player, not server
+        sizeof(recipient),
+        sizeof(header),
+        sizeof(client->name),
+        0,
+        sender,
+        recipient,
+        header,
+        (uint8_t*)client->name
     );
     printf("[%s]: %s has left the chatroom!\n", (char*)messageToSend.senderName, (char*)messageToSend.body);
     uint8_t buffer[1024];

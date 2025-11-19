@@ -3,7 +3,8 @@
 #include <stdio.h>
 #include <string.h>
 
-#include  "Chat_C.h"
+#include "../headers/Client.h"
+#include "../headers/Server.h"
 
 void handleJoin() {
     char ip[16];

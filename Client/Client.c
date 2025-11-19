@@ -9,7 +9,8 @@
 #include <pthread.h>
 #include <stdlib.h>
 
-#include "Chat_C.h"
+#include "../headers/Client.h"
+#include "../headers/Messages.h"
 uint8_t clientName[24];
 uint32_t nameSize;
 uint32_t clientColor;
