@@ -14,7 +14,7 @@
 #include "../headers/Server.h"
 
 int serverSockFd;
-int doListen = 1;
+int shouldHandle = 1;
 ClientList* clients;
 
 int createServerSocket() {
@@ -46,7 +46,7 @@ void initServer(int socket, int maxClients) {
     pthread_join(tid, NULL);
 }
 void* handleConnections(void* data) {
-    while (1) {
+    while (shouldHandle == 1) {
         //creates socket for client
         struct sockaddr_in client_addr;
         socklen_t client_addr_size = sizeof(client_addr);

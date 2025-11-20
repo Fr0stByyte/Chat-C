@@ -5,6 +5,7 @@
 
 #include <pthread.h>
 #include <stdio.h>
+#include <stdlib.h>
 
 #include "../headers/Server.h"
 #include <string.h>
@@ -65,7 +66,9 @@ void ServerReceiveJoinRequest(Client* client, ClientList* client_list, Message* 
         uint8_t buffer[1024];
         Serialize(&messageToClient, buffer);
         send(client->clientFd, buffer, sizeof(buffer), 0);
-        return;
+        shutdown(client->clientFd, SHUT_WR);
+        free(client);
+        pthread_exit(NULL);
     }
     strcpy(client->name, (char*)message->senderName);
     client->color = (int)message->color;
@@ -123,6 +126,7 @@ void ServerReceiveDisconnectRequest(Client* client, ClientList* client_list) {
     for (int i = 0; i < client_list->size; i++) {
         send(client_list->clientBuffer[i]->clientFd, buffer, sizeof(buffer), 0);
     }
+    shutdown(client->clientFd, SHUT_WR);
     removeClientFromList(client_list, client);
     pthread_exit(NULL);
 }

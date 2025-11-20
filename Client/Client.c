@@ -18,7 +18,7 @@ int isAllowed = 1;
 
 void sendChatMessages(int socket) {
     char messageText[256];
-    while (isAllowed == 1) {
+    while (1) {
         fgets(messageText, sizeof(messageText), stdin);
         messageText[strcspn(messageText, "\n")] = '\0'; // remove newline
 
@@ -43,7 +43,7 @@ void sendChatMessages(int socket) {
             printf("Disconnecting...\n");
             break;
         }
-        if (strcmp(messageText, "#pm") == 0) {
+        if(strcmp(messageText, "#pm") == 0) {
             char recipient[24];
             char msg[256];
             uint8_t privateHeader[] = "SEND PRIVATE";
@@ -67,6 +67,8 @@ void sendChatMessages(int socket) {
             uint8_t buffer[1024];
             Serialize(&privateMessage, buffer);
             send(socket, buffer, sizeof(buffer), 0);
+        } else if (strcmp(messageText, "") == 0) {
+            printf("No data...\n");
         } else{
             uint8_t recipient[] = "ALL";
             uint8_t header[] = "SEND GLOBAL";
@@ -93,7 +95,7 @@ void* receiveMessages(void* arg) {
     int socket = *(int*)arg;
     uint8_t buffer[1024];
 
-    while (1) {
+    while (isAllowed == 1) {
         ssize_t size = recv(socket, buffer, sizeof(buffer), 0);
         if (size <= 0) {
             printf("Disconnected from server.\n");
@@ -109,7 +111,7 @@ void* receiveMessages(void* arg) {
         }
         if (strcmp((char*)msg.header, "FAIL JOIN") == 0 && strcmp((char*)msg.senderName, (char*)clientName) != 0) {
             printf("SERVER REFUSED REQUEST, NAME IS WRONG!\n");
-
+            exit(0);
         }
         if (strcmp((char*)msg.header, "NEW LEAVE") == 0 && strcmp((char*)msg.senderName, (char*)clientName) != 0) {
             printf("[%s]: %s has left the chatroom!\n", (char*)msg.senderName, (char*)msg.body);
