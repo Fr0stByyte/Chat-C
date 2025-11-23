@@ -17,6 +17,9 @@
 
 int serverSockFd;
 int shouldHandle = 1;
+int maxClients;
+int currentClients = 0;
+pthread_mutex_t currentClientsMutex;
 ClientList* clients;
 
 int createServerSocket() {
@@ -36,11 +39,14 @@ int createServerSocket() {
     listen(sockfd, SOMAXCONN);
     return sockfd;
 }
-void initServer(int socket, int maxClients) {
+void initServer(int socket, int clientsAllowed) {
 
     //initiaizes global variables and thread
     serverSockFd = socket;
+    maxClients = clientsAllowed;
     clients = CreateClientList(maxClients);
+    //init mutex for currentClients
+    pthread_mutex_init(&currentClientsMutex, NULL);
 
     //creates new thread to handle connection requests
     pthread_t tid;
@@ -48,7 +54,7 @@ void initServer(int socket, int maxClients) {
     pthread_join(tid, NULL);
 }
 void* handleConnections(void* data) {
-    while (shouldHandle == 1) {
+    while (1) {
         //creates socket for client
         struct sockaddr_in client_addr;
         socklen_t client_addr_size = sizeof(client_addr);
@@ -63,24 +69,29 @@ void* handleConnectionRequest(void* data) {
     int socket = *(int*)data;
     uint8_t buffer[1024];
     ssize_t dataSize = recv(socket, buffer, sizeof(buffer), 0);
-    if (dataSize > 0) {
+    if (dataSize > 0 && currentClients < maxClients) {
         //processes clients join message
         Message connectionRequest = Deserialize(buffer, dataSize);
         Client* client;
         int accepted = ServerReceiveJoinRequest(socket, clients, &connectionRequest, &client);
         if (accepted == 1) {
+            //lock and unlock mutex to prevent race condition in currentClients
+            pthread_mutex_lock(&currentClientsMutex);
+            currentClients += 1;
+            pthread_mutex_unlock(&currentClientsMutex);
             //create  thread to handle client messaging
             pthread_t tid;
             pthread_create(&tid, NULL, handleClient, client);
             pthread_detach(tid);
         } else {
-            printf("rejected client!\n");
             //tell client fuck off
             shutdown(socket, SHUT_RDWR);
             close(socket);
         }
     } else {
         //tell client fuck off
+        char reason[] = "SERVER IS FULL";
+        ServerSendRejectMessage(socket, reason, sizeof(reason));
         shutdown(socket, SHUT_RDWR);
         close(socket);
     }
@@ -101,6 +112,11 @@ void* handleClient(void* data) {
     shutdown(client->clientFd, SHUT_RDWR);
     close(client->clientFd);
     removeClientFromList(clients, client);
+
+    //lock and unlock mutex to prevent race condition in currentClients
+    pthread_mutex_lock(&currentClientsMutex);
+    currentClients -= 1;
+    pthread_mutex_unlock(&currentClientsMutex);
     return NULL;
 }
 void ProcessRequest(Message* receivedMessage, Client* client) {

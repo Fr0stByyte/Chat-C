@@ -101,8 +101,8 @@ void* receiveMessages(void* arg) {
         if (strcmp((char*)msg.header, "NEW JOIN") == 0 && strcmp((char*)msg.senderName, (char*)clientName) != 0) {
             printf("[%s]: %s has joined the chatroom!\n", (char*)msg.senderName, (char*)msg.body);
         }
-        if (strcmp((char*)msg.header, "FAIL JOIN") == 0 && strcmp((char*)msg.senderName, (char*)clientName) != 0) {
-            printf("SERVER REFUSED REQUEST, NAME IS WRONG!\n");
+        if (strcmp((char*)msg.header, "REJECT ACTION") == 0 && strcmp((char*)msg.senderName, (char*)clientName) != 0) {
+            printf("SERVER REJECTED ACTION: %s\n", (char*)msg.body);
             shutdown(socket, SHUT_RDWR);
             close(socket);
             connected = 0;

@@ -50,23 +50,8 @@ int ServerReceiveJoinRequest(int socket, ClientList* client_list, Message* messa
         if (strcmp((char*)message->senderName, (char*)client_list->clientBuffer[i]->name) == 0) nameAllowed = 0;
     }
     if (nameAllowed == 0) {
-        uint8_t header[] = "FAIL JOIN";
-        uint8_t sender[] = "SERVER";
-        Message messageToClient = createMessage(
-            time(NULL),
-            sizeof(sender),
-            message->recipientLength,
-            sizeof(header),
-            0,
-            0,
-            sender,
-            message->recipientName,
-            header,
-            NULL
-            );
-        uint8_t buffer[1024];
-        Serialize(&messageToClient, buffer);
-        send(socket, buffer, sizeof(buffer), 0);
+        char reason[] = "NAME TAKEN";
+        ServerSendRejectMessage(socket, reason, sizeof(reason));
         return 0;
     }
     *clientReturn = CreateClient(socket, (char*)message->senderName, (int)message->color);
@@ -123,7 +108,27 @@ void ServerReceiveDisconnectRequest(Client* client, ClientList* client_list) {
         send(client_list->clientBuffer[i]->clientFd, buffer, sizeof(buffer), 0);
     }
 }
-
+void ServerSendRejectMessage(int socket, char reason[], size_t reasonSize) {
+    uint8_t header[] = "REJECT ACTION";
+    uint8_t sender[] = "SERVER";
+    uint8_t recipient[] = "";
+    Message messageToSend = createMessage(
+        time(NULL),
+        sizeof(sender),
+        sizeof(recipient),
+        sizeof(header),
+        (uint32_t)reasonSize,
+        0,
+        sender,
+        recipient,
+        header,
+        (uint8_t*)reason
+    );
+    uint8_t buffer[1024];
+    Serialize(&messageToSend, buffer);
+    send(socket, buffer, sizeof(buffer), 0);
+    printf("Rejected action: %s\n", (char*)reason);
+}
 void ServerReceivePrivateMessage(Client* client, ClientList* client_list, Message* message) {
 
     //create message to send, essentially the message the client sent with a diffrent header

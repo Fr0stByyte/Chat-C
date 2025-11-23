@@ -42,6 +42,7 @@ void* handleClient(void* data);
  */
 void* handleConnectionRequest(void* data);
 void* handleConnections(void* data);
+void ServerSendRejectMessage(int socket, char reason[], size_t reasonSize);
 /**
  * handles a request from a client, will check message header to determine actions [write more]
  * @param[in] receivedMessage message recieved from the client
