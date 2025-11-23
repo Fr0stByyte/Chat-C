@@ -12,7 +12,6 @@
 
 typedef struct {
     int clientFd;
-    struct sockaddr_in clientAddr;
     char name[24];
     int color;
     int isAllowed;

@@ -23,7 +23,6 @@ void handleJoin() {
         initClient(socket, sizeof(name), name, color);
     } else {
         printf("socket creation failed!\n");
-        return;
     }
 }
 

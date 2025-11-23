@@ -4,6 +4,7 @@
 
 #include "../headers/Clients.h"
 #include <stdlib.h>
+#include <string.h>
 
 ClientList* CreateClientList(int capacity) {
     //creates client list object to hold client objects
@@ -14,12 +15,12 @@ ClientList* CreateClientList(int capacity) {
     pthread_mutex_init(&clientList->mutexLock, NULL);
     return clientList;
 }
-Client* CreateClient(int clientFd, struct sockaddr_in clientAddress) {
+Client* CreateClient(int clientFd, char clientName[], int clientColor) {
     //creates client object, then return
     Client* client = (Client*)malloc(sizeof(Client));
     client->clientFd = clientFd;
-    client->clientAddr = clientAddress;
-    client->isAllowed = 0;
+    client->color = clientColor;
+    strcpy(client->name, clientName);
     return client;
 }
 void addClientToList(ClientList* clientList, Client* client) {

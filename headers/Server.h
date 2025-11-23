@@ -21,7 +21,7 @@ void ServerReceiveGlobalMessage(Client* client, ClientList* client_list, Message
  * @param clients
  * @param message connection data (text color, name)
  */
-void ServerReceiveJoinRequest(Client* client, ClientList* clients, Message* message);
+int ServerReceiveJoinRequest(int socket, ClientList* client_list, Message* message, Client** clientReturn);
 void ServerReceiveDisconnectRequest(Client* client, ClientList* client_list);
 void ServerReceivePrivateMessage(Client* client, ClientList* client_list, Message* message);
 /**
@@ -40,6 +40,7 @@ void* handleClient(void* data);
  * @param[in] data should be set as NULL
  * @return
  */
+void* handleConnectionRequest(void* data);
 void* handleConnections(void* data);
 /**
  * handles a request from a client, will check message header to determine actions [write more]

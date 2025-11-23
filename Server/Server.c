@@ -13,6 +13,8 @@
 #include "../headers/Clients.h"
 #include "../headers/Server.h"
 
+#include <unistd.h>
+
 int serverSockFd;
 int shouldHandle = 1;
 ClientList* clients;
@@ -51,14 +53,38 @@ void* handleConnections(void* data) {
         struct sockaddr_in client_addr;
         socklen_t client_addr_size = sizeof(client_addr);
         int clientSocket = accept(serverSockFd, (struct sockaddr*)&client_addr, &client_addr_size); // yeilds thread
-        //creates client object
-        Client* newClient = CreateClient(clientSocket, client_addr); // create user client
-
-        //creates new thread to handle communication with client
         pthread_t tid;
-        pthread_create(&tid, NULL, handleClient, newClient);
+        pthread_create(&tid, NULL, handleConnectionRequest, &clientSocket);
         pthread_detach(tid);
     }
+    return NULL;
+}
+void* handleConnectionRequest(void* data) {
+    int socket = *(int*)data;
+    uint8_t buffer[1024];
+    ssize_t dataSize = recv(socket, buffer, sizeof(buffer), 0);
+    if (dataSize > 0) {
+        //processes clients join message
+        Message connectionRequest = Deserialize(buffer, dataSize);
+        Client* client;
+        int accepted = ServerReceiveJoinRequest(socket, clients, &connectionRequest, &client);
+        if (accepted == 1) {
+            //create  thread to handle client messaging
+            pthread_t tid;
+            pthread_create(&tid, NULL, handleClient, client);
+            pthread_detach(tid);
+        } else {
+            printf("rejected client!\n");
+            //tell client fuck off
+            shutdown(socket, SHUT_RDWR);
+            close(socket);
+        }
+    } else {
+        //tell client fuck off
+        shutdown(socket, SHUT_RDWR);
+        close(socket);
+    }
+    //thread terminates after work is done, handleClient still runs
     return NULL;
 }
 void* handleClient(void* data) {
@@ -71,12 +97,14 @@ void* handleClient(void* data) {
         Message clientMessage = Deserialize(buffer, dataSize);
         ProcessRequest(&clientMessage, client);
     }
+    ServerReceiveDisconnectRequest(client, clients);
+    shutdown(client->clientFd, SHUT_RDWR);
+    close(client->clientFd);
+    removeClientFromList(clients, client);
     return NULL;
 }
 void ProcessRequest(Message* receivedMessage, Client* client) {
     //calls fucntions based on header
     if (strcmp((char*)receivedMessage->header, "SEND GLOBAL") == 0) ServerReceiveGlobalMessage(client, clients, receivedMessage);
-    if (strcmp((char*)receivedMessage->header, "REQUEST CONNECT") == 0) ServerReceiveJoinRequest(client, clients, receivedMessage);
-    if (strcmp((char*)receivedMessage->header, "SEND DISCONNECT") == 0) ServerReceiveDisconnectRequest(client, clients);
     if (strcmp((char*)receivedMessage->header, "SEND PRIVATE") == 0) ServerReceivePrivateMessage(client, clients, receivedMessage);
 }

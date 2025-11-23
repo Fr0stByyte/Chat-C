@@ -8,40 +8,27 @@
 #include <arpa/inet.h>
 #include <pthread.h>
 #include <stdlib.h>
+#include <unistd.h>
 
 #include "../headers/Client.h"
 #include "../headers/Messages.h"
 uint8_t clientName[24];
 uint32_t nameSize;
 uint32_t clientColor;
-int isAllowed = 1;
+int connected = 0;
 
 void sendChatMessages(int socket) {
     char messageText[256];
-    while (1) {
+    while (connected == 1) {
         fgets(messageText, sizeof(messageText), stdin);
         messageText[strcspn(messageText, "\n")] = '\0'; // remove newline
 
         if (strcmp(messageText, "#exit") == 0) {
-            uint8_t recipient[] = "SERVER";
-            uint8_t leaveHeader[] = "SEND DISCONNECT";
-            Message leaveMSg = createMessage(
-                time(NULL),
-                sizeof(clientName),
-                sizeof(recipient),
-                sizeof(leaveHeader),
-                0,
-                0,
-                clientName,
-                recipient,
-                leaveHeader,
-                NULL
-            );
-            uint8_t buffer[1024];
-            Serialize(&leaveMSg, buffer);
-            send(socket, buffer, sizeof(buffer), 0);
-            printf("Disconnecting...\n");
-            break;
+            shutdown(socket, SHUT_RDWR);
+            close(socket);
+            printf("Disconnected!\n");
+            connected = 0;
+            return;
         }
         if(strcmp(messageText, "#pm") == 0) {
             char recipient[24];
@@ -95,11 +82,16 @@ void* receiveMessages(void* arg) {
     int socket = *(int*)arg;
     uint8_t buffer[1024];
 
-    while (isAllowed == 1) {
+    while (1) {
         ssize_t size = recv(socket, buffer, sizeof(buffer), 0);
         if (size <= 0) {
-            printf("Disconnected from server.\n");
-            break;
+            if (connected == 1) {
+                printf("Disconnected from server.\n");
+                shutdown(socket, SHUT_RDWR);
+                close(socket);
+                connected = 0;
+            }
+            return NULL;
         }
 
         Message msg = Deserialize(buffer, size);
@@ -111,7 +103,10 @@ void* receiveMessages(void* arg) {
         }
         if (strcmp((char*)msg.header, "FAIL JOIN") == 0 && strcmp((char*)msg.senderName, (char*)clientName) != 0) {
             printf("SERVER REFUSED REQUEST, NAME IS WRONG!\n");
-            exit(0);
+            shutdown(socket, SHUT_RDWR);
+            close(socket);
+            connected = 0;
+            return NULL;
         }
         if (strcmp((char*)msg.header, "NEW LEAVE") == 0 && strcmp((char*)msg.senderName, (char*)clientName) != 0) {
             printf("[%s]: %s has left the chatroom!\n", (char*)msg.senderName, (char*)msg.body);
@@ -120,7 +115,6 @@ void* receiveMessages(void* arg) {
             printf("[PRIVATE][%s]: %s\n", (char*)msg.senderName, (char*)msg.body);
         }
     }
-    return NULL;
 }
 
 int createClientSocket(char ip[16]) {
@@ -137,7 +131,7 @@ int createClientSocket(char ip[16]) {
    return clientFd;
 }
 void initClient(int socket, uint32_t userLength, uint8_t username[], uint32_t color) {
-
+    connected = 1;
    uint8_t header[] = "REQUEST CONNECT";
    uint8_t recipient[] = "SERVER";
     memcpy(clientName, username, userLength);

@@ -20,7 +20,7 @@ void addClientToList(ClientList* clientList, Client* client);
  * @param[in] clientAddress stores client data such as ip
  * @return pointer to newly created client object
  */
-Client* CreateClient(int clientFd, struct sockaddr_in clientAddress);
+Client* CreateClient(int clientFd, char* clientName, int clientColor);
 /**
  * creates a client list object on the heap
  * @param[in] capacity max amount of clients the list can store

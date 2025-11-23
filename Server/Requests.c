@@ -10,6 +10,7 @@
 #include "../headers/Server.h"
 #include <string.h>
 #include <time.h>
+#include <unistd.h>
 
 #include "../headers/Messages.h"
 #include "../headers/Clients.h"
@@ -42,7 +43,7 @@ void ServerReceiveGlobalMessage(Client* client, ClientList* client_list, Message
         send(client_list->clientBuffer[i]->clientFd, buffer, sizeof(buffer), 0);
     }
 }
-void ServerReceiveJoinRequest(Client* client, ClientList* client_list, Message* message) {
+int ServerReceiveJoinRequest(int socket, ClientList* client_list, Message* message, Client** clientReturn) {
     // gets client name and color from the connecting client
     int nameAllowed = 1;
     for (int i =0; i < client_list->size; i++) {
@@ -65,18 +66,12 @@ void ServerReceiveJoinRequest(Client* client, ClientList* client_list, Message* 
             );
         uint8_t buffer[1024];
         Serialize(&messageToClient, buffer);
-        send(client->clientFd, buffer, sizeof(buffer), 0);
-        shutdown(client->clientFd, SHUT_WR);
-        free(client);
-        pthread_exit(NULL);
+        send(socket, buffer, sizeof(buffer), 0);
+        return 0;
     }
-    strcpy(client->name, (char*)message->senderName);
-    client->color = (int)message->color;
-    client->isAllowed = 1;
-
+    *clientReturn = CreateClient(socket, (char*)message->senderName, (int)message->color);
     //adds client to global list of clients
-    client->isAllowed = 1;
-    addClientToList(client_list, client);
+    addClientToList(client_list, *clientReturn);
 
     //create message to confirm client joining the room
     uint8_t header[] = "NEW JOIN";
@@ -101,6 +96,7 @@ void ServerReceiveJoinRequest(Client* client, ClientList* client_list, Message* 
     for (int i = 0; i < client_list->size; i++) {
         send(client_list->clientBuffer[i]->clientFd, buffer, sizeof(buffer), 0);
     }
+    return 1;
 }
 
 void ServerReceiveDisconnectRequest(Client* client, ClientList* client_list) {
@@ -126,9 +122,6 @@ void ServerReceiveDisconnectRequest(Client* client, ClientList* client_list) {
     for (int i = 0; i < client_list->size; i++) {
         send(client_list->clientBuffer[i]->clientFd, buffer, sizeof(buffer), 0);
     }
-    shutdown(client->clientFd, SHUT_WR);
-    removeClientFromList(client_list, client);
-    pthread_exit(NULL);
 }
 
 void ServerReceivePrivateMessage(Client* client, ClientList* client_list, Message* message) {
@@ -150,7 +143,6 @@ void ServerReceivePrivateMessage(Client* client, ClientList* client_list, Messag
     printf("[PRIVATE][%s]: %s\n", (char*)messageToSend.senderName, (char*)messageToSend.body);
     uint8_t buffer[1024];
     Serialize(&messageToSend, buffer);
-
     //find targeted user
     for (int i = 0; i < client_list->size; i++) {
         // send(client_list->clientBuffer[i]->clientFd, buffer, sizeof(buffer), 0);
