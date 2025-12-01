@@ -11,12 +11,21 @@
 #include <unistd.h>
 
 #include "../headers/Client.h"
+
+#include <signal.h>
+
 #include "../headers/Messages.h"
 uint8_t clientName[24];
 uint32_t nameSize;
 uint32_t clientColor;
 int connected = 0;
+int clientSocket;
 
+void handleSigintClient() {
+    shutdown(clientSocket, SHUT_RDWR);
+    close(clientSocket);
+    exit(0);
+}
 void sendChatMessages(int socket) {
     char messageText[256];
     while (connected == 1) {
@@ -34,10 +43,14 @@ void sendChatMessages(int socket) {
             char recipient[24];
             char msg[256];
             uint8_t privateHeader[] = "SEND PRIVATE";
+
             printf("enter recepient name: ");
             fgets(recipient, sizeof(recipient), stdin);
+            recipient[strcspn(recipient, "\n")] = '\0';
+
             printf("enter message: ");
             fgets(msg, sizeof(msg), stdin);
+            msg[strcspn(msg, "\n")] = '\0';
 
             Message privateMessage = createMessage(
                 time(NULL),
@@ -111,7 +124,7 @@ void* receiveMessages(void* arg) {
         if (strcmp((char*)msg.header, "NEW LEAVE") == 0 && strcmp((char*)msg.senderName, (char*)clientName) != 0) {
             printf("[%s]: %s has left the chatroom!\n", (char*)msg.senderName, (char*)msg.body);
         }
-        if (strcmp((char*)msg.header, "RECEIVE PRIVATE") == 0 && strcmp((char*)msg.senderName, (char*)clientName) != 0) {
+        if (strcmp((char*)msg.header, "RECEIVE PRIVATE") == 0) {
             printf("[PRIVATE][%s]: %s\n", (char*)msg.senderName, (char*)msg.body);
         }
     }
@@ -131,6 +144,8 @@ int createClientSocket(char ip[16]) {
    return clientFd;
 }
 void initClient(int socket, uint32_t userLength, uint8_t username[], uint32_t color) {
+    clientSocket = socket;
+    signal(SIGINT, handleSigintClient);
     connected = 1;
    uint8_t header[] = "REQUEST CONNECT";
    uint8_t recipient[] = "SERVER";

@@ -73,28 +73,36 @@ void ServerReceiveDisconnectRequest(Client* client, ClientList* client_list) {
 }
 void ServerReceivePrivateMessage(Client* client, ClientList* client_list, Message* message) {
 
+
     //create message to send, essentially the message the client sent with a diffrent header
+    //find targeted user
+    Client* targetUser = NULL;
+    for (int i = 0; i < client_list->size; i++) {
+        // printf("recipientName = '%s'\n", (char*)message->recipientName);
+        // printf("client name   = '%s'\n", client_list->clientBuffer[i]->name);
+        if (strcmp((char*)message->recipientName, (char*)client_list->clientBuffer[i]->name) == 0) {
+            // printf("found!\n");
+            targetUser = client_list->clientBuffer[i];
+        }
+    }
+    if (targetUser == NULL) {
+        return;
+    };
     uint8_t header[] = "RECEIVE PRIVATE";
     Message messageToSend = createMessage(
         time(NULL),
-        message->senderLength, //sender should be player, not server
-        message->recipientLength,
+        sizeof(client->name),
+        sizeof(targetUser->name),
         sizeof(header),
         message->bodyLength,
-        message->color,
-        message->senderName,
-        message->recipientName,
+        0,
+        (uint8_t*)client->name,
+        (uint8_t*)targetUser->name,
         header,
         message->body
-        );
-    printf("[PRIVATE][%s]: %s\n", (char*)messageToSend.senderName, (char*)messageToSend.body);
+    );
     uint8_t buffer[1024];
     Serialize(&messageToSend, buffer);
-    //find targeted user
-    for (int i = 0; i < client_list->size; i++) {
-        // send(client_list->clientBuffer[i]->clientFd, buffer, sizeof(buffer), 0);
-        if (strcmp((char*)message->recipientName, client_list->clientBuffer[i]->name) == 0) {
-            send(client_list->clientBuffer[i]->clientFd, buffer, sizeof(buffer), 0);
-        }
-    }
+    send(targetUser->clientFd, buffer, sizeof(buffer), 0);
+
 }

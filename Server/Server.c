@@ -13,6 +13,7 @@
 #include "../headers/Clients.h"
 #include "../headers/Server.h"
 
+#include <signal.h>
 #include <unistd.h>
 
 int serverSockFd;
@@ -22,6 +23,11 @@ int currentClients = 0;
 pthread_mutex_t currentClientsMutex;
 ClientList* clients;
 
+void handleSigintServer() {
+    shutdown(serverSockFd, SHUT_RDWR);
+    close(serverSockFd);
+    exit(0);
+}
 int createServerSocket() {
     //creates sockaddr struct
     struct sockaddr_in server_addr;
@@ -40,6 +46,7 @@ int createServerSocket() {
     return sockfd;
 }
 void initServer(int socket, int clientsAllowed) {
+    signal(SIGINT, handleSigintServer);
 
     //initiaizes global variables and thread
     serverSockFd = socket;
