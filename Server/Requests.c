@@ -43,91 +43,33 @@ void ServerReceiveGlobalMessage(Client* client, ClientList* client_list, Message
         send(client_list->clientBuffer[i]->clientFd, buffer, sizeof(buffer), 0);
     }
 }
-int ServerReceiveJoinRequest(int socket, ClientList* client_list, Message* message, Client** clientReturn) {
+int ServerReceiveJoinRequest(int socket, ClientList* client_list, Message* joinRequest, Client** clientReturn) {
     // gets client name and color from the connecting client
     int nameAllowed = 1;
     for (int i =0; i < client_list->size; i++) {
-        if (strcmp((char*)message->senderName, (char*)client_list->clientBuffer[i]->name) == 0) nameAllowed = 0;
+        if (strcmp((char*)joinRequest->senderName, (char*)client_list->clientBuffer[i]->name) == 0) nameAllowed = 0;
     }
     if (nameAllowed == 0) {
         char reason[] = "NAME TAKEN";
         ServerSendRejectMessage(socket, reason, sizeof(reason));
         return 0;
     }
-    *clientReturn = CreateClient(socket, (char*)message->senderName, (int)message->color);
+    *clientReturn = CreateClient(socket, (char*)joinRequest->senderName, (int)joinRequest->color);
     //adds client to global list of clients
     addClientToList(client_list, *clientReturn);
-
     //create message to confirm client joining the room
-    uint8_t header[] = "NEW JOIN";
-    uint8_t sender[] = "SERVER";
-    uint8_t recipient[] = "ALL";
-    Message messageToClient = createMessage(
-        time(NULL),
-        sizeof(sender),
-        sizeof(recipient),
-        sizeof(header),
-        message->senderLength,
-        0,
-        sender,
-        recipient,
-        header,
-        message->senderName
-        );
-    printf("[%s]: %s has joined the chatroom!\n", (char*)messageToClient.senderName, (char*)messageToClient.body);
-    //serialize and send message
-    uint8_t buffer[1024];
-    Serialize(&messageToClient, buffer);
-    for (int i = 0; i < client_list->size; i++) {
-        send(client_list->clientBuffer[i]->clientFd, buffer, sizeof(buffer), 0);
-    }
+    char header[] = "NEW JOIN";
+    ServerSendGlobalMessage(client_list, header, sizeof(header), (char*)joinRequest->senderName, sizeof(joinRequest->senderName));
+    printf("[SERVER]: %s has joined the chatroom!\n", (char*)joinRequest->senderName);
     return 1;
 }
 
 void ServerReceiveDisconnectRequest(Client* client, ClientList* client_list) {
     //rempve client from list and end thread
-    uint8_t header[] = "NEW LEAVE";
-    uint8_t sender[] = "SERVER";
-    uint8_t recipient[] = "ALL";
-    Message messageToSend = createMessage(
-        time(NULL),
-        sizeof(sender), //sender should be player, not server
-        sizeof(recipient),
-        sizeof(header),
-        sizeof(client->name),
-        0,
-        sender,
-        recipient,
-        header,
-        (uint8_t*)client->name
-    );
-    printf("[%s]: %s has left the chatroom!\n", (char*)messageToSend.senderName, (char*)messageToSend.body);
-    uint8_t buffer[1024];
-    Serialize(&messageToSend, buffer);
-    for (int i = 0; i < client_list->size; i++) {
-        send(client_list->clientBuffer[i]->clientFd, buffer, sizeof(buffer), 0);
-    }
-}
-void ServerSendRejectMessage(int socket, char reason[], size_t reasonSize) {
-    uint8_t header[] = "REJECT ACTION";
-    uint8_t sender[] = "SERVER";
-    uint8_t recipient[] = "";
-    Message messageToSend = createMessage(
-        time(NULL),
-        sizeof(sender),
-        sizeof(recipient),
-        sizeof(header),
-        (uint32_t)reasonSize,
-        0,
-        sender,
-        recipient,
-        header,
-        (uint8_t*)reason
-    );
-    uint8_t buffer[1024];
-    Serialize(&messageToSend, buffer);
-    send(socket, buffer, sizeof(buffer), 0);
-    printf("Rejected action: %s\n", (char*)reason);
+    char header[] = "NEW LEAVE";
+    ServerSendGlobalMessage(client_list, header, sizeof(header), client->name, sizeof(client->name));
+    printf("[SERVER]: %s has left the chatroom!\n", client->name);
+    //freeing the client is handled by Server.c
 }
 void ServerReceivePrivateMessage(Client* client, ClientList* client_list, Message* message) {
 
