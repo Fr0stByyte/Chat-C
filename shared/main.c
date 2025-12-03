@@ -9,8 +9,8 @@
 
 void handleJoin() {
     char ip[16];
-    uint8_t name[24];
-    uint32_t color;
+    char name[24];
+    int color;
 
     printf("enter the ip of the server you wish to connect to: ");
     scanf("%s", ip);
@@ -24,7 +24,7 @@ void handleJoin() {
 
     int socket = createClientSocket(ip);
     if (socket > 0) {
-        initClient(socket, sizeof(name), name, color - 1);
+        initClient(socket, name, color - 1);
     } else {
         printf("socket creation failed!\n");
     }

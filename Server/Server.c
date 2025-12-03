@@ -98,7 +98,7 @@ void* handleConnectionRequest(void* data) {
     } else {
         //tell client fuck off
         char reason[] = "SERVER IS FULL";
-        ServerSendRejectMessage(socket, reason, sizeof(reason));
+        ServerSendRejectMessage(socket, reason);
         shutdown(socket, SHUT_RDWR);
         close(socket);
     }

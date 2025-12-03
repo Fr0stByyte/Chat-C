@@ -15,9 +15,9 @@
 #include <signal.h>
 
 #include "../headers/Messages.h"
-uint8_t clientName[24];
-uint32_t nameSize;
-uint32_t clientColor;
+char clientName[24];
+int nameSize;
+int clientColor;
 int connected = 0;
 int clientSocket;
 
@@ -46,7 +46,7 @@ void sendChatMessages(int socket) {
         if(strcmp(messageText, "#pm") == 0) {
             char recipient[24];
             char msg[256];
-            uint8_t privateHeader[] = "SEND PRIVATE";
+            char privateHeader[] = "SEND PRIVATE";
 
             printf("enter recepient name: ");
             fgets(recipient, sizeof(recipient), stdin);
@@ -58,15 +58,11 @@ void sendChatMessages(int socket) {
 
             Message privateMessage = createMessage(
                 time(NULL),
-                nameSize,
-                sizeof(recipient),
-                sizeof(privateHeader),
-                sizeof(msg),
                 clientColor,
                 clientName,
-                (uint8_t*)recipient,
+                recipient,
                 privateHeader,
-                (uint8_t*)msg
+                msg
             );
             uint8_t buffer[1024];
             Serialize(&privateMessage, buffer);
@@ -74,19 +70,15 @@ void sendChatMessages(int socket) {
         } else if (strcmp(messageText, "") == 0) {
             printf("No data...\n");
         } else{
-            uint8_t recipient[] = "ALL";
-            uint8_t header[] = "SEND GLOBAL";
+            char recipient[] = "ALL";
+            char header[] = "SEND GLOBAL";
             Message msg = createMessage(
                 time(NULL),
-                nameSize,
-                sizeof(recipient),
-                sizeof(header),
-                sizeof(messageText),
                 clientColor,
                 clientName,
                 recipient,
                 header,
-                (uint8_t*)messageText
+                messageText
             );
             uint8_t buffer[1024];
             Serialize(&msg, buffer);
@@ -129,26 +121,23 @@ void* receiveMessages(void* arg) {
         if (isConnected == -1) return -1;
         return clientFd;
     }
-    void initClient(int socket, uint32_t userLength, uint8_t username[], uint32_t color) {
+    void initClient(int socket, char* username, int color) {
         clientSocket = socket;
         signal(SIGINT, handleSigintClient);
         connected = 1;
-        uint8_t header[] = "REQUEST CONNECT";
-        uint8_t recipient[] = "SERVER";
-        memcpy(clientName, username, userLength);
-        nameSize = userLength;
+        char header[] = "REQUEST CONNECT";
+        char recipient[] = "SERVER";
         clientColor = color;
+        strcpy(clientName, username);
 
-        Message message = createMessage(time(NULL),
-           nameSize,
-           sizeof(recipient),
-           sizeof(header),
-           0,
-           clientColor,
+        Message message = createMessage(
+            time(NULL),
+            clientColor,
            clientName,
-           recipient,
-           header,
-           NULL);
+            recipient,
+            header,
+            ""
+            );
 
         uint8_t buffer[1024];
         Serialize(&message, buffer);
