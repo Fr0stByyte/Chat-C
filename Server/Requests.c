@@ -32,7 +32,7 @@ void ServerReceiveGlobalMessage(Client* client, ClientList* client_list, Message
         header,
         message->body
         );
-    printf("[%s]: %s\n", (char*)messageToSend.senderName, (char*)messageToSend.body);
+    printf("%s" "[%s]: %s" RESET "\n", colorArray[message->color], (char*)messageToSend.senderName, (char*)messageToSend.body);
 
     //sereilize into buffer
     uint8_t buffer[1024];
@@ -60,7 +60,7 @@ int ServerReceiveJoinRequest(int socket, ClientList* client_list, Message* joinR
     //create message to confirm client joining the room
     char header[] = "NEW JOIN";
     ServerSendGlobalMessage(client_list, header, sizeof(header), (char*)joinRequest->senderName, sizeof(joinRequest->senderName));
-    printf("[SERVER]: %s has joined the chatroom!\n", (char*)joinRequest->senderName);
+    printf(YELLOW "[SERVER]: %s has joined the chatroom!" RESET "\n", (char*)joinRequest->senderName);
     return 1;
 }
 
@@ -68,7 +68,7 @@ void ServerReceiveDisconnectRequest(Client* client, ClientList* client_list) {
     //rempve client from list and end thread
     char header[] = "NEW LEAVE";
     ServerSendGlobalMessage(client_list, header, sizeof(header), client->name, sizeof(client->name));
-    printf("[SERVER]: %s has left the chatroom!\n", client->name);
+    printf(YELLOW "[SERVER]: %s has left the chatroom!" RESET "\n", client->name);
     //freeing the client is handled by Server.c
 }
 void ServerReceivePrivateMessage(Client* client, ClientList* client_list, Message* message) {
@@ -95,7 +95,7 @@ void ServerReceivePrivateMessage(Client* client, ClientList* client_list, Messag
         sizeof(targetUser->name),
         sizeof(header),
         message->bodyLength,
-        0,
+        message->color,
         (uint8_t*)client->name,
         (uint8_t*)targetUser->name,
         header,
@@ -104,5 +104,4 @@ void ServerReceivePrivateMessage(Client* client, ClientList* client_list, Messag
     uint8_t buffer[1024];
     Serialize(&messageToSend, buffer);
     send(targetUser->clientFd, buffer, sizeof(buffer), 0);
-
 }

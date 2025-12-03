@@ -21,9 +21,13 @@ uint32_t clientColor;
 int connected = 0;
 int clientSocket;
 
-void handleSigintClient() {
+void closeClientConnection() {
     shutdown(clientSocket, SHUT_RDWR);
     close(clientSocket);
+    connected = 0;
+}
+void handleSigintClient() {
+    closeClientConnection();
     exit(0);
 }
 void sendChatMessages(int socket) {
@@ -107,70 +111,52 @@ void* receiveMessages(void* arg) {
             return NULL;
         }
 
-        Message msg = Deserialize(buffer, size);
-        if (strcmp((char*)msg.header, "RECEIVE GLOBAL") == 0 && strcmp((char*)msg.senderName, (char*)clientName) != 0) {
-            printf("[%s]: %s\n", (char*)msg.senderName, (char*)msg.body);
-        }
-        if (strcmp((char*)msg.header, "NEW JOIN") == 0 && strcmp((char*)msg.senderName, (char*)clientName) != 0) {
-            printf("[%s]: %s has joined the chatroom!\n", (char*)msg.senderName, (char*)msg.body);
-        }
-        if (strcmp((char*)msg.header, "REJECT ACTION") == 0 && strcmp((char*)msg.senderName, (char*)clientName) != 0) {
-            printf("SERVER REJECTED ACTION: %s\n", (char*)msg.body);
-            shutdown(socket, SHUT_RDWR);
-            close(socket);
-            connected = 0;
-            return NULL;
-        }
-        if (strcmp((char*)msg.header, "NEW LEAVE") == 0 && strcmp((char*)msg.senderName, (char*)clientName) != 0) {
-            printf("[%s]: %s has left the chatroom!\n", (char*)msg.senderName, (char*)msg.body);
-        }
-        if (strcmp((char*)msg.header, "RECEIVE PRIVATE") == 0) {
-            printf("[PRIVATE][%s]: %s\n", (char*)msg.senderName, (char*)msg.body);
-        }
+        Message message = Deserialize(buffer, size);
+        processMessage(&message);
     }
 }
 
-int createClientSocket(char ip[16]) {
-   struct sockaddr_in server;
-   server.sin_family = AF_INET;
-   if (inet_pton(AF_INET, ip, &server.sin_addr) <= 0) return -1;
-   server.sin_port = htons(8080);
+    int createClientSocket(char ip[16]) {
+        struct sockaddr_in server;
+        server.sin_family = AF_INET;
+        if (inet_pton(AF_INET, ip, &server.sin_addr) <= 0) return -1;
+        server.sin_port = htons(8080);
 
-   int clientFd = socket(AF_INET, SOCK_STREAM, 0);
-   if (clientFd == -1) return -1;
+        int clientFd = socket(AF_INET, SOCK_STREAM, 0);
+        if (clientFd == -1) return -1;
 
-   int isConnected = connect(clientFd, (struct sockaddr*)&server, sizeof(server));
-   if (isConnected == -1) return -1;
-   return clientFd;
-}
-void initClient(int socket, uint32_t userLength, uint8_t username[], uint32_t color) {
-    clientSocket = socket;
-    signal(SIGINT, handleSigintClient);
-    connected = 1;
-   uint8_t header[] = "REQUEST CONNECT";
-   uint8_t recipient[] = "SERVER";
-    memcpy(clientName, username, userLength);
-    nameSize = userLength;
-    clientColor = color;
+        int isConnected = connect(clientFd, (struct sockaddr*)&server, sizeof(server));
+        if (isConnected == -1) return -1;
+        return clientFd;
+    }
+    void initClient(int socket, uint32_t userLength, uint8_t username[], uint32_t color) {
+        clientSocket = socket;
+        signal(SIGINT, handleSigintClient);
+        connected = 1;
+        uint8_t header[] = "REQUEST CONNECT";
+        uint8_t recipient[] = "SERVER";
+        memcpy(clientName, username, userLength);
+        nameSize = userLength;
+        clientColor = color;
 
-   Message message = createMessage(time(NULL),
-      nameSize,
-      sizeof(recipient),
-      sizeof(header),
-      0,
-      clientColor,
-      clientName,
-      recipient,
-      header,
-      NULL);
+        Message message = createMessage(time(NULL),
+           nameSize,
+           sizeof(recipient),
+           sizeof(header),
+           0,
+           clientColor,
+           clientName,
+           recipient,
+           header,
+           NULL);
 
-   uint8_t buffer[1024];
-   Serialize(&message, buffer);
-   send(socket, buffer, sizeof(buffer), 0);
+        uint8_t buffer[1024];
+        Serialize(&message, buffer);
+        send(socket, buffer, sizeof(buffer), 0);
 
-   pthread_t recvThread;
-   pthread_create(&recvThread, NULL, receiveMessages, &socket);
-   pthread_detach(recvThread);
+        pthread_t recvThread;
+        pthread_create(&recvThread, NULL, receiveMessages, &socket);
+        pthread_detach(recvThread);
 
-   sendChatMessages(socket);
+        sendChatMessages(socket);
 }

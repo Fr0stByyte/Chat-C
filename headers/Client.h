@@ -5,7 +5,6 @@
 #ifndef CHAT_C_CHAT_C_H
 #define CHAT_C_CHAT_C_H
 #include "Types.h"
-
 #endif //CHAT_C_CHAT_C_H
 /**
  * creates a socket and connects it to a server, used to establish a connection
@@ -22,4 +21,5 @@ int createClientSocket(char ip[16]);
  * @param[in] clientColor color the client will give to the server, displayed to other users
  */
 void initClient(int socket, uint32_t nameLength, uint8_t clientName[], uint32_t clientColor);
-
+void closeClientConnection();
+void processMessage(Message* message);

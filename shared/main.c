@@ -5,6 +5,7 @@
 
 #include "../headers/Client.h"
 #include "../headers/Server.h"
+#include "../headers/Messages.h"
 
 void handleJoin() {
     char ip[16];
@@ -15,12 +16,15 @@ void handleJoin() {
     scanf("%s", ip);
     printf("enter your username: ");
     scanf("%s", name);
-    printf("enter the your color: ");
+    printf("type an integer that cooresponds to your desired text color:\n");
+    for (int i = 0; i < 16; i++) {
+        printf("%d %s" "\n", i, colorArray[i]);
+    }
     scanf("%d", &color);
 
     int socket = createClientSocket(ip);
     if (socket > 0) {
-        initClient(socket, sizeof(name), name, color);
+        initClient(socket, sizeof(name), name, color - 1);
     } else {
         printf("socket creation failed!\n");
     }
