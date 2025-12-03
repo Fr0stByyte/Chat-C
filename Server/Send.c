@@ -13,7 +13,7 @@ void ServerSendDirectMessage(Client* client, char* header, char* message) {
     char sender[] = "SERVER";
     Message messageToSend = createMessage(
         time(NULL),
-        0,
+        4,
         sender,
         client->name,
         header,
@@ -29,7 +29,7 @@ void ServerSendRejectMessage(int socket, char* reason) {
     char header[] = "REJECT ACTION";
     Message messageToSend = createMessage(
         time(NULL),
-        0,
+        2,
         sender,
         "",
         header,

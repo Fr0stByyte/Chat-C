@@ -45,6 +45,7 @@ int ServerReceiveJoinRequest(int socket, ClientList* client_list, Message* joinR
     for (int i =0; i < client_list->size; i++) {
         if (strcmp((char*)joinRequest->senderName, (char*)client_list->clientBuffer[i]->name) == 0) nameAllowed = 0;
     }
+    if (strcmp((char*)joinRequest->senderName, "SERVER") == 0) nameAllowed = 0;
     if (nameAllowed == 0) {
         char reason[] = "NAME TAKEN";
         ServerSendRejectMessage(socket, reason);
@@ -82,11 +83,11 @@ void ServerReceivePrivateMessage(Client* client, ClientList* client_list, Messag
         }
     }
     if (targetUser == NULL) {
-        char header[] = "";
-        char serverMsg[] = "";
+        char header[] = "RECEIVE GLOBAL";
+        char serverMsg[] = "User does not exist!";
         ServerSendDirectMessage(client, header, serverMsg);
         return;
-    };
+    }
     char header[] = "RECEIVE PRIVATE";
     Message messageToSend = createMessage(
         time(NULL),
