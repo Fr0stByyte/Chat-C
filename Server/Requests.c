@@ -19,7 +19,7 @@
 void ServerReceiveGlobalMessage(Client* client, ClientList* client_list, Message* message) {
     char header[] = "RECEIVE GLOBAL";
 
-    //create the damn message, long function but it needs to exist
+    //create message
     Message messageToSend = createMessage(
         message->timeStamp,
         (int)message->color,

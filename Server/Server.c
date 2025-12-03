@@ -91,12 +91,12 @@ void* handleConnectionRequest(void* data) {
             pthread_create(&tid, NULL, handleClient, client);
             pthread_detach(tid);
         } else {
-            //tell client fuck off
+            //close connection
             shutdown(socket, SHUT_RDWR);
             close(socket);
         }
     } else {
-        //tell client fuck off
+        //send reject message then close connection
         char reason[] = "SERVER IS FULL";
         ServerSendRejectMessage(socket, reason);
         shutdown(socket, SHUT_RDWR);
