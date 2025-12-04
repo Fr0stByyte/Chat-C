@@ -16,4 +16,5 @@ add_executable(Chat_C
         headers/Messages.h
         headers/Server.h
         Server/Send.c
+        Client/TextProcessing.c
 )

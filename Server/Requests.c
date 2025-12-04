@@ -17,22 +17,18 @@
 
 
 void ServerReceiveGlobalMessage(Client* client, ClientList* client_list, Message* message) {
-    uint8_t header[] = "RECEIVE GLOBAL";
+    char header[] = "RECEIVE GLOBAL";
 
-    //create the damn message, long function but it needs to exist
+    //create message
     Message messageToSend = createMessage(
         message->timeStamp,
-        message->senderLength,
-        message->recipientLength,
-        sizeof(header),
-        message->bodyLength,
-        message->color,
-        message->senderName,
-        message->recipientName,
+        (int)message->color,
+        (char*)message->senderName,
+        (char*)message->recipientName,
         header,
-        message->body
+        (char*)message->body
         );
-    printf("[%s]: %s\n", (char*)messageToSend.senderName, (char*)messageToSend.body);
+    printf("%s" "[%s]: %s" RESET "\n", colorArray[message->color], (char*)messageToSend.senderName, (char*)messageToSend.body);
 
     //sereilize into buffer
     uint8_t buffer[1024];
@@ -49,9 +45,10 @@ int ServerReceiveJoinRequest(int socket, ClientList* client_list, Message* joinR
     for (int i =0; i < client_list->size; i++) {
         if (strcmp((char*)joinRequest->senderName, (char*)client_list->clientBuffer[i]->name) == 0) nameAllowed = 0;
     }
+    if (strcmp((char*)joinRequest->senderName, "SERVER") == 0 && strcmp((char*)joinRequest->senderName, "") == 0) nameAllowed = 0;
     if (nameAllowed == 0) {
-        char reason[] = "NAME TAKEN";
-        ServerSendRejectMessage(socket, reason, sizeof(reason));
+        char reason[] = "NAME TAKEN / INVALID NAME";
+        ServerSendRejectMessage(socket, reason);
         return 0;
     }
     *clientReturn = CreateClient(socket, (char*)joinRequest->senderName, (int)joinRequest->color);
@@ -59,16 +56,16 @@ int ServerReceiveJoinRequest(int socket, ClientList* client_list, Message* joinR
     addClientToList(client_list, *clientReturn);
     //create message to confirm client joining the room
     char header[] = "NEW JOIN";
-    ServerSendGlobalMessage(client_list, header, sizeof(header), (char*)joinRequest->senderName, sizeof(joinRequest->senderName));
-    printf("[SERVER]: %s has joined the chatroom!\n", (char*)joinRequest->senderName);
+    ServerSendGlobalMessage(client_list, header, (char*)joinRequest->senderName);
+    printf(YELLOW "[SERVER]: %s has joined the chatroom!" RESET "\n", (char*)joinRequest->senderName);
     return 1;
 }
 
 void ServerReceiveDisconnectRequest(Client* client, ClientList* client_list) {
     //rempve client from list and end thread
     char header[] = "NEW LEAVE";
-    ServerSendGlobalMessage(client_list, header, sizeof(header), client->name, sizeof(client->name));
-    printf("[SERVER]: %s has left the chatroom!\n", client->name);
+    ServerSendGlobalMessage(client_list, header, client->name);
+    printf(YELLOW "[SERVER]: %s has left the chatroom!" RESET "\n", client->name);
     //freeing the client is handled by Server.c
 }
 void ServerReceivePrivateMessage(Client* client, ClientList* client_list, Message* message) {
@@ -86,23 +83,21 @@ void ServerReceivePrivateMessage(Client* client, ClientList* client_list, Messag
         }
     }
     if (targetUser == NULL) {
+        char header[] = "RECEIVE GLOBAL";
+        char serverMsg[] = "User does not exist!";
+        ServerSendDirectMessage(client, header, serverMsg);
         return;
-    };
-    uint8_t header[] = "RECEIVE PRIVATE";
+    }
+    char header[] = "RECEIVE PRIVATE";
     Message messageToSend = createMessage(
         time(NULL),
-        sizeof(client->name),
-        sizeof(targetUser->name),
-        sizeof(header),
-        message->bodyLength,
-        0,
-        (uint8_t*)client->name,
-        (uint8_t*)targetUser->name,
+        (int)message->color,
+        client->name,
+        targetUser->name,
         header,
-        message->body
+        (char*)message->body
     );
     uint8_t buffer[1024];
     Serialize(&messageToSend, buffer);
     send(targetUser->clientFd, buffer, sizeof(buffer), 0);
-
 }

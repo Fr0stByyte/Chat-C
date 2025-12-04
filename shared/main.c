@@ -5,22 +5,28 @@
 
 #include "../headers/Client.h"
 #include "../headers/Server.h"
+#include "../headers/Messages.h"
 
 void handleJoin() {
     char ip[16];
-    uint8_t name[24];
-    uint32_t color;
+    char name[24];
+    int color;
 
     printf("enter the ip of the server you wish to connect to: ");
-    scanf("%s", ip);
+    fgets(ip, 16, stdin);
+    ip[strcspn(ip, "\n")] = '\0';
     printf("enter your username: ");
-    scanf("%s", name);
-    printf("enter the your color: ");
+    fgets(name, 24, stdin);
+    name[strcspn(name, "\n")] = '\0';
+    printf("type an integer that cooresponds to your desired text color:\n");
+    for (int i = 0; i < 16; i++) {
+        printf("%d %s" "\n", i, colorArray[i]);
+    }
     scanf("%d", &color);
 
     int socket = createClientSocket(ip);
     if (socket > 0) {
-        initClient(socket, sizeof(name), name, color);
+        initClient(socket, name, color - 1);
     } else {
         printf("socket creation failed!\n");
     }
@@ -40,7 +46,8 @@ int main() {
     while (1) {
         char choice[24];
         printf("Welcome to Chat-C! type 'join' to join a room, or 'create' to create a room! Type 'exit' to exit the program! ");
-        scanf("%s", choice);
+        fgets(choice, 24, stdin);
+        choice[strcspn(choice, "\n")] = '\0';
         if (strcmp(choice, "join") == 0) handleJoin();
         if (strcmp(choice, "create") == 0) handleCreate();
         if (strcmp(choice, "exit") == 0) break;

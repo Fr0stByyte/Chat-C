@@ -38,7 +38,7 @@ Message Deserialize(uint8_t data[1024], ssize_t dataSize) {
     uint32_t messageLength;
     uint32_t color;
 
-    //copy first 16 bytes of data to decriptor variables
+    //copy first 24 bytes of data to decriptor variables
     memcpy(&timeStamp, data, 4);
     memcpy(&senderLength, data + 4, 4);
     memcpy(&recipientLength, data + 8, 4);
@@ -67,7 +67,13 @@ void ClearBuffer(uint8_t buffer[1024], size_t size) {
     memset(buffer, 0, size);
 }
 
-Message createMessage(uint32_t timeStamp, uint32_t senderLength, uint32_t recipientLength, uint32_t headerLength, uint32_t bodyLength, uint32_t color, uint8_t sender[], uint8_t recipient[], uint8_t header[], uint8_t body[]) {
+Message createMessage(time_t timeStamp, int color, char* sender, char* recipient, char* header, char* body) {
+
+    size_t senderLength = strlen(sender) + 1;
+    size_t recipientLength = strlen(recipient) + 1;
+    size_t headerLength = strlen(header) + 1;
+    size_t bodyLength = strlen(body) + 1;
+
     Message message = {};
     message.timeStamp = timeStamp;
     message.senderLength = senderLength;
@@ -80,7 +86,6 @@ Message createMessage(uint32_t timeStamp, uint32_t senderLength, uint32_t recipi
     memcpy(message.recipientName, recipient, message.recipientLength);
     memcpy(message.header, header, message.headerLength);
     memcpy(message.body, body, message.bodyLength);
-
 
     return message;
 }
