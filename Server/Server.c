@@ -16,18 +16,39 @@
 #include <signal.h>
 #include <unistd.h>
 
+#define MAX_LENGTH 64
+#define MAX_STRINGS 64
+
 int serverSockFd;
 int shouldHandle = 1;
 int maxClients;
 int currentClients = 0;
+
+char blacklist[MAX_STRINGS][MAX_LENGTH];
+int lineCount;
+
 pthread_mutex_t currentClientsMutex;
 ClientList* clients;
+
+int getBlacklist(FILE *file) {
+    // rewind(file);
+    int i = 0;
+    while (fgets(blacklist[i], MAX_LENGTH, file))
+    {
+        blacklist[i][strcspn(blacklist[i], "\r\n")] = '\0';
+        i++;
+    }
+    rewind(file);
+    fclose(file);
+    return i;
+}
 
 void handleSigintServer() {
     shutdown(serverSockFd, SHUT_RDWR);
     close(serverSockFd);
     exit(0);
 }
+
 int createServerSocket() {
     //creates sockaddr struct
     struct sockaddr_in server_addr;
@@ -45,8 +66,15 @@ int createServerSocket() {
     listen(sockfd, SOMAXCONN);
     return sockfd;
 }
-void initServer(int socket, int clientsAllowed) {
+void initServer(int socket, int clientsAllowed, char* fileName) {
     signal(SIGINT, handleSigintServer);
+
+    FILE *file = fopen(fileName, "r");
+    if (file == NULL) {
+        printf("blacklist not found!\n");
+        return;
+    };
+    lineCount = getBlacklist(file);
 
     //initiaizes global variables and thread
     serverSockFd = socket;
@@ -128,6 +156,16 @@ void* handleClient(void* data) {
 }
 void ProcessRequest(Message* receivedMessage, Client* client) {
     //calls fucntions based on header
+    for(int i = 0; i < lineCount; i++)
+    {
+        if (strcasestr((char*)receivedMessage->body, blacklist[i]) != NULL) {
+            char header[] = "RECEIVE GLOBAL";
+            char serverMsg[] = "get censored!";
+            ServerSendDirectMessage(client, header, serverMsg);
+            return;
+        }
+    }
+
     if (strcmp((char*)receivedMessage->header, "SEND GLOBAL") == 0) ServerReceiveGlobalMessage(client, clients, receivedMessage);
     if (strcmp((char*)receivedMessage->header, "SEND PRIVATE") == 0) ServerReceivePrivateMessage(client, clients, receivedMessage);
 }
