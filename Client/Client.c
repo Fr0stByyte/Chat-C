@@ -68,7 +68,11 @@ void sendChatMessages(int socket) {
             Serialize(&privateMessage, buffer);
             send(socket, buffer, sizeof(buffer), 0);
         } else if (strcmp(messageText, "") == 0) {
-            printf("No data...\n");
+        }else if (strcmp(messageText, "#changecolor") == 0) {
+            int newColor = 0;
+            printf("enter new color: ");
+            scanf("%d",&newColor);
+            if (newColor >= 0 && newColor < 16) clientColor = newColor - 1;
         } else{
             char recipient[] = "ALL";
             char header[] = "SEND GLOBAL";

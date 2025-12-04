@@ -45,9 +45,9 @@ int ServerReceiveJoinRequest(int socket, ClientList* client_list, Message* joinR
     for (int i =0; i < client_list->size; i++) {
         if (strcmp((char*)joinRequest->senderName, (char*)client_list->clientBuffer[i]->name) == 0) nameAllowed = 0;
     }
-    if (strcmp((char*)joinRequest->senderName, "SERVER") == 0) nameAllowed = 0;
+    if (strcmp((char*)joinRequest->senderName, "SERVER") == 0 && strcmp((char*)joinRequest->senderName, "") == 0) nameAllowed = 0;
     if (nameAllowed == 0) {
-        char reason[] = "NAME TAKEN";
+        char reason[] = "NAME TAKEN / INVALID NAME";
         ServerSendRejectMessage(socket, reason);
         return 0;
     }
