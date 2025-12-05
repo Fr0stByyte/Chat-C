@@ -37,9 +37,11 @@ void handleCreate() {
     printf("enter the max client number: ");
     scanf("%d", &maxClients);
 
-    printf("listening for connections on port: 8080; %d max clients allowed...\n", maxClients);
+    char fileName[24];
+    printf("Enter the file name for word blacklist: ");
+    scanf("%s", fileName);
     int sock = createServerSocket();
-    initServer(sock, maxClients);
+    initServer(sock, maxClients, fileName);
 }
 
 int main() {

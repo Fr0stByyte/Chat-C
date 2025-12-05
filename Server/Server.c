@@ -8,6 +8,7 @@
 #include <sys/socket.h>
 #include <stdlib.h>
 #include <string.h>
+#include <netdb.h>
 
 #include "../headers/Messages.h"
 #include "../headers/Clients.h"
@@ -15,19 +16,41 @@
 
 #include <signal.h>
 #include <unistd.h>
+#include <arpa/inet.h>
+
+#define MAX_LENGTH 64
+#define MAX_STRINGS 64
 
 int serverSockFd;
 int shouldHandle = 1;
 int maxClients;
 int currentClients = 0;
+
+char blacklist[MAX_STRINGS][MAX_LENGTH];
+int lineCount;
+
 pthread_mutex_t currentClientsMutex;
 ClientList* clients;
+
+int getBlacklist(FILE *file) {
+    // rewind(file);
+    int i = 0;
+    while (fgets(blacklist[i], MAX_LENGTH, file))
+    {
+        blacklist[i][strcspn(blacklist[i], "\r\n")] = '\0';
+        i++;
+    }
+    rewind(file);
+    fclose(file);
+    return i;
+}
 
 void handleSigintServer() {
     shutdown(serverSockFd, SHUT_RDWR);
     close(serverSockFd);
     exit(0);
 }
+
 int createServerSocket() {
     //creates sockaddr struct
     struct sockaddr_in server_addr;
@@ -45,19 +68,37 @@ int createServerSocket() {
     listen(sockfd, SOMAXCONN);
     return sockfd;
 }
-void initServer(int socket, int clientsAllowed) {
+void initServer(int socket, int clientsAllowed, char* fileName) {
     signal(SIGINT, handleSigintServer);
+
+    FILE *file = fopen(fileName, "r");
+    if (file == NULL) {
+        printf("blacklist not found!\n");
+        return;
+    };
+    lineCount = getBlacklist(file);
 
     //initiaizes global variables and thread
     serverSockFd = socket;
     maxClients = clientsAllowed;
     clients = CreateClientList(maxClients);
+
+    char hostname[256];
+    struct hostent *hostData;
+    gethostname(hostname, 256);
+    hostData = gethostbyname(hostname);
+    char* serverIP = inet_ntoa(*((struct in_addr*)hostData->h_addr_list[0]));
     //init mutex for currentClients
     pthread_mutex_init(&currentClientsMutex, NULL);
 
     //creates new thread to handle connection requests
     pthread_t tid;
     pthread_create(&tid, NULL, handleConnections, NULL);
+    printf("listening for connections on IP: %s\n port: 8080\n %d max clients allowed\n", serverIP, maxClients);
+
+    if (strcmp(serverIP, "127.0.1.1") == 0 || strcmp(serverIP, "127.0.0.1") == 0 || strcmp(serverIP, "0.0.0.0") == 0) {
+        printf("hosting ip is a loopback address, only you can connect :(\n");
+    }
     pthread_join(tid, NULL);
 }
 void* handleConnections(void* data) {
@@ -128,6 +169,23 @@ void* handleClient(void* data) {
 }
 void ProcessRequest(Message* receivedMessage, Client* client) {
     //calls fucntions based on header
+    for(int i = 0; i < lineCount; i++)
+    {
+        if (strcasestr((char*)receivedMessage->body, blacklist[i]) != NULL) {
+            char header[] = "RECEIVE PRIVATE";
+            char serverMsg[] = "phrase is blacklisted!";
+            ServerSendDirectMessage(client, header, serverMsg);
+            return;
+        }
+    }
+
+    if (receivedMessage->color < 0 || receivedMessage->color > 15) {
+        char header[] = "RECEIVE PRIVATE";
+        char serverMsg[] = "message is illegal: invalid color";
+        ServerSendDirectMessage(client, header, serverMsg);
+        return;
+    }
+
     if (strcmp((char*)receivedMessage->header, "SEND GLOBAL") == 0) ServerReceiveGlobalMessage(client, clients, receivedMessage);
     if (strcmp((char*)receivedMessage->header, "SEND PRIVATE") == 0) ServerReceivePrivateMessage(client, clients, receivedMessage);
 }
