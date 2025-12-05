@@ -8,6 +8,7 @@
 #include <sys/socket.h>
 #include <stdlib.h>
 #include <string.h>
+#include <netdb.h>
 
 #include "../headers/Messages.h"
 #include "../headers/Clients.h"
@@ -15,6 +16,7 @@
 
 #include <signal.h>
 #include <unistd.h>
+#include <arpa/inet.h>
 
 #define MAX_LENGTH 64
 #define MAX_STRINGS 64
@@ -80,12 +82,23 @@ void initServer(int socket, int clientsAllowed, char* fileName) {
     serverSockFd = socket;
     maxClients = clientsAllowed;
     clients = CreateClientList(maxClients);
+
+    char hostname[256];
+    struct hostent *hostData;
+    gethostname(hostname, 256);
+    hostData = gethostbyname(hostname);
+    char* serverIP = inet_ntoa(*((struct in_addr*)hostData->h_addr_list[0]));
     //init mutex for currentClients
     pthread_mutex_init(&currentClientsMutex, NULL);
 
     //creates new thread to handle connection requests
     pthread_t tid;
     pthread_create(&tid, NULL, handleConnections, NULL);
+    printf("listening for connections on IP: %s\n port: 8080\n %d max clients allowed\n", serverIP, maxClients);
+
+    if (strcmp(serverIP, "127.0.1.1") == 0 || strcmp(serverIP, "127.0.0.1") == 0 || strcmp(serverIP, "0.0.0.0") == 0) {
+        printf("hosting ip is a loopback address, only you can connect :(\n");
+    }
     pthread_join(tid, NULL);
 }
 void* handleConnections(void* data) {
@@ -164,6 +177,13 @@ void ProcessRequest(Message* receivedMessage, Client* client) {
             ServerSendDirectMessage(client, header, serverMsg);
             return;
         }
+    }
+
+    if (receivedMessage->color < 0 || receivedMessage->color > 15) {
+        char header[] = "RECEIVE PRIVATE";
+        char serverMsg[] = "message is illegal: invalid color";
+        ServerSendDirectMessage(client, header, serverMsg);
+        return;
     }
 
     if (strcmp((char*)receivedMessage->header, "SEND GLOBAL") == 0) ServerReceiveGlobalMessage(client, clients, receivedMessage);

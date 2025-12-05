@@ -72,7 +72,7 @@ void sendChatMessages(int socket) {
             int newColor = 0;
             printf("enter new color: ");
             scanf("%d",&newColor);
-            if (newColor >= 0 && newColor < 16) clientColor = newColor - 1;
+            clientColor = newColor - 1;
         } else{
             char recipient[] = "ALL";
             char header[] = "SEND GLOBAL";
