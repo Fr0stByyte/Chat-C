@@ -159,8 +159,8 @@ void ProcessRequest(Message* receivedMessage, Client* client) {
     for(int i = 0; i < lineCount; i++)
     {
         if (strcasestr((char*)receivedMessage->body, blacklist[i]) != NULL) {
-            char header[] = "RECEIVE GLOBAL";
-            char serverMsg[] = "get censored!";
+            char header[] = "RECEIVE PRIVATE";
+            char serverMsg[] = "phrase is blacklisted!";
             ServerSendDirectMessage(client, header, serverMsg);
             return;
         }
