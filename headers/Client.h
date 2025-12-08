@@ -20,6 +20,6 @@ int createClientSocket(char ip[16]);
  * @param[in] clientName name the client will give to the server
  * @param[in] clientColor color the client will give to the server, displayed to other users
  */
-void initClient(int socket, char* clientName, int clientColor);
+void initClient(int socket, char* clientName, int clientColor, char* joinPass);
 void closeClientConnection();
 void processMessage(Message* message);

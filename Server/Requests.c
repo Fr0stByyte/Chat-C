@@ -39,13 +39,25 @@ void ServerReceiveGlobalMessage(Client* client, ClientList* client_list, Message
         send(client_list->clientBuffer[i]->clientFd, buffer, sizeof(buffer), 0);
     }
 }
-int ServerReceiveJoinRequest(int socket, ClientList* client_list, Message* joinRequest, Client** clientReturn) {
+int ServerReceiveJoinRequest(int socket, ClientList* client_list, Message* joinRequest, Client** clientReturn, char* serverPass) {
     // gets client name and color from the connecting client
     int nameAllowed = 1;
+
+    if (strcmp(serverPass, joinRequest->body) != 0 && strcmp(serverPass, "") != 0) {
+        //password is incorrect but is required
+        char reason[] = "INCORRECT PASSWORD";
+        ServerSendRejectMessage(socket, reason);
+        return 0;
+    }
+
+    //checks if name is already taken
     for (int i =0; i < client_list->size; i++) {
         if (strcmp((char*)joinRequest->senderName, (char*)client_list->clientBuffer[i]->name) == 0) nameAllowed = 0;
     }
+    //name cant be server or blank
     if (strcmp((char*)joinRequest->senderName, "SERVER") == 0 && strcmp((char*)joinRequest->senderName, "") == 0) nameAllowed = 0;
+
+    //refuses if name is taken or not allowed
     if (nameAllowed == 0) {
         char reason[] = "NAME TAKEN / INVALID NAME";
         ServerSendRejectMessage(socket, reason);
@@ -66,7 +78,7 @@ void ServerReceiveDisconnectRequest(Client* client, ClientList* client_list) {
     char header[] = "NEW LEAVE";
     ServerSendGlobalMessage(client_list, header, client->name);
     printf(YELLOW "[SERVER]: %s has left the chatroom!" RESET "\n", client->name);
-    //freeing the client is handled by Server.c
+    removeClientFromList(client_list, client);
 }
 void ServerReceivePrivateMessage(Client* client, ClientList* client_list, Message* message) {
 

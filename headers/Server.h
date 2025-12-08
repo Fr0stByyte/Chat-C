@@ -21,7 +21,7 @@ void ServerReceiveGlobalMessage(Client* client, ClientList* client_list, Message
  * @param clients
  * @param message connection data (text color, name)
  */
-int ServerReceiveJoinRequest(int socket, ClientList* client_list, Message* message, Client** clientReturn);
+int ServerReceiveJoinRequest(int socket, ClientList* client_list, Message* message, Client** clientReturn, char* serverPass);
 void ServerReceiveDisconnectRequest(Client* client, ClientList* client_list);
 void ServerReceivePrivateMessage(Client* client, ClientList* client_list, Message* message);
 /**
@@ -56,4 +56,4 @@ void ProcessRequest(Message* receivedMessage, Client* client);
  * @param[in] socket socket the server will listen on
  * @param[in] maxClients max number of clients that can be stored
  */
-void initServer(int socket, int maxClients, char* fileName);
+void initServer(int socket, int maxClients, char* fileName, char* password);

@@ -26,18 +26,18 @@ int shouldHandle = 1;
 int maxClients;
 int currentClients = 0;
 
-char blacklist[MAX_STRINGS][MAX_LENGTH];
+char serverBlacklist[MAX_STRINGS][MAX_LENGTH];
 int lineCount;
+char serverPass[24];
 
 pthread_mutex_t currentClientsMutex;
 ClientList* clients;
 
 int getBlacklist(FILE *file) {
-    // rewind(file);
     int i = 0;
-    while (fgets(blacklist[i], MAX_LENGTH, file))
+    while (fgets(serverBlacklist[i], MAX_LENGTH, file))
     {
-        blacklist[i][strcspn(blacklist[i], "\r\n")] = '\0';
+        serverBlacklist[i][strcspn(serverBlacklist[i], "\r\n")] = '\0';
         i++;
     }
     rewind(file);
@@ -68,7 +68,7 @@ int createServerSocket() {
     listen(sockfd, SOMAXCONN);
     return sockfd;
 }
-void initServer(int socket, int clientsAllowed, char* fileName) {
+void initServer(int socket, int clientsAllowed, char* fileName, char* password) {
     signal(SIGINT, handleSigintServer);
 
     FILE *file = fopen(fileName, "r");
@@ -76,29 +76,38 @@ void initServer(int socket, int clientsAllowed, char* fileName) {
         printf("blacklist not found!\n");
         return;
     };
-    lineCount = getBlacklist(file);
+    if (strlen(password) >= 24) {
+        printf("Password is too long!\n");
+        return;
+    }
 
     //initiaizes global variables and thread
+    strncpy(serverPass, password, 24);
     serverSockFd = socket;
     maxClients = clientsAllowed;
     clients = CreateClientList(maxClients);
+    lineCount = getBlacklist(file);
 
     char hostname[256];
     struct hostent *hostData;
     gethostname(hostname, 256);
     hostData = gethostbyname(hostname);
-    char* serverIP = inet_ntoa(*((struct in_addr*)hostData->h_addr_list[0]));
+    for (int i = 0; hostData->h_addr_list[i] != NULL; i++) {
+        printf("%s\n", inet_ntoa(*(struct in_addr*)hostData->h_addr_list[i]));
+    }
     //init mutex for currentClients
     pthread_mutex_init(&currentClientsMutex, NULL);
 
     //creates new thread to handle connection requests
     pthread_t tid;
     pthread_create(&tid, NULL, handleConnections, NULL);
-    printf("listening for connections on IP: %s\n port: 8080\n %d max clients allowed\n", serverIP, maxClients);
+    printf("listening for connections on IP: \n port: 8080\n %d max clients allowed\n", maxClients);
 
-    if (strcmp(serverIP, "127.0.1.1") == 0 || strcmp(serverIP, "127.0.0.1") == 0 || strcmp(serverIP, "0.0.0.0") == 0) {
-        printf("hosting ip is a loopback address, only you can connect :(\n");
-    }
+    if (strcmp(serverPass, "") == 0) printf("No password is set!\n");
+
+    // if (strcmp(serverIP, "127.0.1.1") == 0 || strcmp(serverIP, "127.0.0.1") == 0 || strcmp(serverIP, "0.0.0.0") == 0) {
+    //     printf("hosting ip is a loopback address, only you can connect :(\n");
+    // }
     pthread_join(tid, NULL);
 }
 void* handleConnections(void* data) {
@@ -121,7 +130,7 @@ void* handleConnectionRequest(void* data) {
         //processes clients join message
         Message connectionRequest = Deserialize(buffer, dataSize);
         Client* client;
-        int accepted = ServerReceiveJoinRequest(socket, clients, &connectionRequest, &client);
+        int accepted = ServerReceiveJoinRequest(socket, clients, &connectionRequest, &client, serverPass);
         if (accepted == 1) {
             //lock and unlock mutex to prevent race condition in currentClients
             pthread_mutex_lock(&currentClientsMutex);
@@ -159,7 +168,6 @@ void* handleClient(void* data) {
     ServerReceiveDisconnectRequest(client, clients);
     shutdown(client->clientFd, SHUT_RDWR);
     close(client->clientFd);
-    removeClientFromList(clients, client);
 
     //lock and unlock mutex to prevent race condition in currentClients
     pthread_mutex_lock(&currentClientsMutex);
@@ -171,7 +179,7 @@ void ProcessRequest(Message* receivedMessage, Client* client) {
     //calls fucntions based on header
     for(int i = 0; i < lineCount; i++)
     {
-        if (strcasestr((char*)receivedMessage->body, blacklist[i]) != NULL) {
+        if (strcasestr((char*)receivedMessage->body, serverBlacklist[i]) != NULL) {
             char header[] = "RECEIVE PRIVATE";
             char serverMsg[] = "phrase is blacklisted!";
             ServerSendDirectMessage(client, header, serverMsg);

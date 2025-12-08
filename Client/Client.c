@@ -125,7 +125,7 @@ void* receiveMessages(void* arg) {
         if (isConnected == -1) return -1;
         return clientFd;
     }
-    void initClient(int socket, char* username, int color) {
+    void initClient(int socket, char* username, int color, char* joinPass) {
         clientSocket = socket;
         signal(SIGINT, handleSigintClient);
         connected = 1;
@@ -140,7 +140,7 @@ void* receiveMessages(void* arg) {
            clientName,
             recipient,
             header,
-            ""
+            joinPass
             );
 
         uint8_t buffer[1024];
