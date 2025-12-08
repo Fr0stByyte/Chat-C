@@ -17,7 +17,7 @@ void handleJoin() {
     fgets(ip, 16, stdin);
     ip[strcspn(ip, "\n")] = '\0';
 
-    printf("enter the server password (leave blank if there is no password: ");
+    printf("enter the server password (leave blank if there is no password): ");
     fgets(pass, 24, stdin);
     pass[strcspn(pass, "\n")] = '\0';
 
@@ -40,20 +40,18 @@ void handleJoin() {
 }
 
 void handleCreate() {
+
+    char pass[24];
+    printf("Enter the password (leave blank for no password): ");
+    fgets(pass, 24, stdin);
+    pass[strcspn(pass, "\n")] = '\0';
+
     int maxClients;
     printf("enter the max client number: ");
     scanf("%d", &maxClients);
 
-    char fileName[24];
-    printf("Enter the file name for word blacklist: ");
-    scanf("%s", fileName);
-
-    char pass[24];
-    printf("Enter the password (leave blank for no password): ");
-    scanf("%s", pass);
-
     int sock = createServerSocket();
-    initServer(sock, maxClients, fileName, pass);
+    initServer(sock, maxClients, pass);
 }
 
 int main() {

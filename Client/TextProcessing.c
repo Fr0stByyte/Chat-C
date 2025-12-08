@@ -8,7 +8,7 @@
 #include "../headers/Messages.h"
 void processMessage(Message* message) {
     if (strcmp((char*)message->header, "RECEIVE GLOBAL") == 0) {
-        char* color = colorArray[(int)message->color];
+        const char* color = colorArray[(int)message->color];
         printf("%s" "[%s]: %s" RESET "\n", color, (char*)message->senderName, (char*)message->body);
     }
     if (strcmp((char*)message->header, "NEW JOIN") == 0) {
@@ -22,7 +22,7 @@ void processMessage(Message* message) {
         printf(YELLOW "[%s]: %s has left the chatroom!" RESET "\n", (char*)message->senderName, (char*)message->body);
     }
     if (strcmp((char*)message->header, "RECEIVE PRIVATE") == 0) {
-        char* color = colorArray[(int)message->color];
+        const char* color = colorArray[(int)message->color];
         printf("%s" "[PRIVATE][%s]: %s" RESET "\n", color, (char*)message->senderName, (char*)message->body);
     }
 }
