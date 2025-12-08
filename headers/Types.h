@@ -25,15 +25,11 @@ typedef struct {
 } ClientList;
 
 typedef struct {
-    uint32_t timeStamp;
-    uint32_t senderLength;
-    uint32_t recipientLength;
-    uint32_t headerLength;
-    uint32_t bodyLength;
-    uint32_t color;
+    time_t timeStamp;
+    int color;
 
-    uint8_t senderName[24];
-    uint8_t recipientName[24];
-    uint8_t header[24];
-    uint8_t body[256];
+    char senderName[24];
+    char recipientName[24];
+    char header[24];
+    char body[256];
 } Message;
