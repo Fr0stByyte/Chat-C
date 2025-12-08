@@ -56,4 +56,4 @@ void ProcessRequest(Message* receivedMessage, Client* client);
  * @param[in] socket socket the server will listen on
  * @param[in] maxClients max number of clients that can be stored
  */
-void initServer(int socket, int maxClients, char* fileName, char* password);
+void initServer(int socket, int maxClients, char* password);

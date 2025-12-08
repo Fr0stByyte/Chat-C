@@ -68,16 +68,16 @@ int createServerSocket() {
     listen(sockfd, SOMAXCONN);
     return sockfd;
 }
-void initServer(int socket, int clientsAllowed, char* fileName, char* password) {
+void initServer(int socket, int clientsAllowed, char* password) {
     signal(SIGINT, handleSigintServer);
 
-    FILE *file = fopen(fileName, "r");
+    FILE *file = fopen("censor.txt", "r");
     if (file == NULL) {
-        printf("blacklist not found!\n");
+        perror("Could not create server: censor file not found!\n");
         return;
     };
     if (strlen(password) >= 24) {
-        printf("Password is too long!\n");
+        perror("Password is too long!\n");
         return;
     }
 
@@ -92,6 +92,8 @@ void initServer(int socket, int clientsAllowed, char* fileName, char* password) 
     struct hostent *hostData;
     gethostname(hostname, 256);
     hostData = gethostbyname(hostname);
+
+    printf("listening on IPS: \n");
     for (int i = 0; hostData->h_addr_list[i] != NULL; i++) {
         printf("%s\n", inet_ntoa(*(struct in_addr*)hostData->h_addr_list[i]));
     }
@@ -101,13 +103,9 @@ void initServer(int socket, int clientsAllowed, char* fileName, char* password) 
     //creates new thread to handle connection requests
     pthread_t tid;
     pthread_create(&tid, NULL, handleConnections, NULL);
-    printf("listening for connections on IP: \n port: 8080\n %d max clients allowed\n", maxClients);
+    printf("%d max clients allowed\n", maxClients);
 
     if (strcmp(serverPass, "") == 0) printf("No password is set!\n");
-
-    // if (strcmp(serverIP, "127.0.1.1") == 0 || strcmp(serverIP, "127.0.0.1") == 0 || strcmp(serverIP, "0.0.0.0") == 0) {
-    //     printf("hosting ip is a loopback address, only you can connect :(\n");
-    // }
     pthread_join(tid, NULL);
 }
 void* handleConnections(void* data) {
