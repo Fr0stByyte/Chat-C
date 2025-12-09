@@ -11,13 +11,20 @@ void handleJoin() {
     char ip[16];
     char name[24];
     int color;
+    char pass[24];
 
     printf("enter the ip of the server you wish to connect to: ");
     fgets(ip, 16, stdin);
     ip[strcspn(ip, "\n")] = '\0';
+
+    printf("enter the server password (leave blank if there is no password): ");
+    fgets(pass, 24, stdin);
+    pass[strcspn(pass, "\n")] = '\0';
+
     printf("enter your username: ");
     fgets(name, 24, stdin);
     name[strcspn(name, "\n")] = '\0';
+
     printf("type an integer that cooresponds to your desired text color:\n");
     for (int i = 0; i < 16; i++) {
         printf("%d %s" "\n", i, colorArray[i]);
@@ -26,22 +33,25 @@ void handleJoin() {
 
     int socket = createClientSocket(ip);
     if (socket > 0) {
-        initClient(socket, name, color - 1);
+        initClient(socket, name, color - 1, pass);
     } else {
         printf("socket creation failed!\n");
     }
 }
 
 void handleCreate() {
+
+    char pass[24];
+    printf("Enter the password (leave blank for no password): ");
+    fgets(pass, 24, stdin);
+    pass[strcspn(pass, "\n")] = '\0';
+
     int maxClients;
     printf("enter the max client number: ");
     scanf("%d", &maxClients);
 
-    char fileName[24];
-    printf("Enter the file name for word blacklist: ");
-    scanf("%s", fileName);
     int sock = createServerSocket();
-    initServer(sock, maxClients, fileName);
+    initServer(sock, maxClients, pass);
 }
 
 int main() {

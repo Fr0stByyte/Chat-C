@@ -7,27 +7,33 @@
 #include <string.h>
 
 void Serialize(Message* message, uint8_t data[1024]) {
+    size_t headerLen = strlen(message->header) + 1;
+    size_t bodyLen = strlen(message->body) + 1;
+    size_t senderLen = strlen(message->senderName) + 1;
+    size_t recipientLen = strlen(message->recipientName) + 1;
+
+
     // format decriptor variables to network protocol
-    uint32_t timeStamp = htonl(message->timeStamp);
-    uint32_t headerLength = htonl(message->headerLength);
-    uint32_t messageLength = htonl(message->bodyLength);
-    uint32_t senderLength = htonl(message->senderLength);
-    uint32_t recipientLength = htonl(message->recipientLength);
-    uint32_t color = htonl(message->color);
+    uint32_t netTimeStamp = htonl((int)message->timeStamp);
+    uint32_t netColor = htonl(message->color);
+    uint32_t netHeader = htonl(headerLen);
+    uint32_t netBody = htonl(bodyLen);
+    uint32_t netSender = htonl(senderLen);
+    uint32_t netRecipient = htonl(recipientLen);
 
     //copy descriptor variables into a blank data buffer
-    memcpy(data, &timeStamp, 4);
-    memcpy(data + 4, &senderLength, 4);
-    memcpy(data + 8, &recipientLength, 4);
-    memcpy(data + 12, &headerLength, 4);
-    memcpy(data + 16, &messageLength, 4);
-    memcpy(data + 20, &color, 4);
+    memcpy(data, &netTimeStamp, 4);
+    memcpy(data + 4, &netSender, 4);
+    memcpy(data + 8, &netRecipient, 4);
+    memcpy(data + 12, &netHeader, 4);
+    memcpy(data + 16, &netBody, 4);
+    memcpy(data + 20, &netColor, 4);
 
     // copy data into buffer
-    memcpy(data + 24, message->senderName, message->senderLength);
-    memcpy(data + 24 + message->senderLength, message->recipientName, message->recipientLength);
-    memcpy(data + 24 + message->senderLength + message->recipientLength, message->header, message->headerLength);
-    memcpy(data + 24 + message->senderLength + message->recipientLength + message->headerLength, message->body, message->bodyLength);
+    memcpy(data + 24, (uint8_t*)message->senderName, senderLen);
+    memcpy(data + 24 + senderLen, (uint8_t*)message->recipientName, recipientLen);
+    memcpy(data + 24 + senderLen + recipientLen, (uint8_t*)message->header, headerLen);
+    memcpy(data + 24 + senderLen + recipientLen + headerLen, (uint8_t*)message->body, bodyLen);
 }
 Message Deserialize(uint8_t data[1024], ssize_t dataSize) {
     //initialize descriptor variables
@@ -46,20 +52,21 @@ Message Deserialize(uint8_t data[1024], ssize_t dataSize) {
     memcpy(&messageLength, data + 16, 4);
     memcpy(&color, data + 20, 4);
 
+    headerLength = ntohl(headerLength);
+    messageLength = ntohl(messageLength);
+    senderLength = ntohl(senderLength);
+    recipientLength = ntohl(recipientLength);
+
     // assign struct decriptor values to system formatted desscriptor variables
     Message message = {};
-    message.timeStamp = ntohl(timeStamp);
-    message.senderLength = ntohl(senderLength);
-    message.recipientLength = ntohl(recipientLength);
-    message.headerLength = ntohl(headerLength);
-    message.bodyLength = ntohl(messageLength);
-    message.color = ntohl(color);
+    message.timeStamp = (time_t)ntohl(timeStamp);
+    message.color = (int)ntohl(color);
 
     //copy message data to struct using sizes determined by the descriptor variables
-    memcpy(message.senderName, data + 24, message.senderLength);
-    memcpy(message.recipientName, data + 24 + message.senderLength, message.recipientLength);
-    memcpy(message.header, data + 24 + message.senderLength + message.recipientLength, message.headerLength);
-    memcpy(message.body, data + 24 + message.senderLength + message.recipientLength + message.headerLength, message.bodyLength);
+    memcpy(message.senderName, data + 24, senderLength);
+    memcpy(message.recipientName, data + 24 + senderLength, recipientLength);
+    memcpy(message.header, data + 24 + senderLength + recipientLength, headerLength);
+    memcpy(message.body, data + 24 + senderLength + recipientLength + headerLength, messageLength);
 
     return message;
 }
@@ -68,24 +75,13 @@ void ClearBuffer(uint8_t buffer[1024], size_t size) {
 }
 
 Message createMessage(time_t timeStamp, int color, char* sender, char* recipient, char* header, char* body) {
-
-    size_t senderLength = strlen(sender) + 1;
-    size_t recipientLength = strlen(recipient) + 1;
-    size_t headerLength = strlen(header) + 1;
-    size_t bodyLength = strlen(body) + 1;
-
     Message message = {};
     message.timeStamp = timeStamp;
-    message.senderLength = senderLength;
-    message.recipientLength = recipientLength;
-    message.headerLength = headerLength;
-    message.bodyLength = bodyLength;
     message.color = color;
 
-    memcpy(message.senderName, sender, message.senderLength);
-    memcpy(message.recipientName, recipient, message.recipientLength);
-    memcpy(message.header, header, message.headerLength);
-    memcpy(message.body, body, message.bodyLength);
-
+    strncpy(message.senderName, sender, 24);
+    strncpy(message.recipientName, recipient, 24);
+    strncpy(message.header, header, 24);
+    strncpy(message.body, body, 256);
     return message;
 }
