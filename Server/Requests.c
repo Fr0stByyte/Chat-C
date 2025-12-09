@@ -22,13 +22,13 @@ void ServerReceiveGlobalMessage(Client* client, ClientList* client_list, Message
     //create message
     Message messageToSend = createMessage(
         message->timeStamp,
-        (int)message->color,
-        (char*)message->senderName,
-        (char*)message->recipientName,
+        message->color,
+        client->name,
+        message->recipientName,
         header,
-        (char*)message->body
+        message->body
         );
-    printf("%s" "[%s]: %s" RESET "\n", colorArray[message->color], (char*)messageToSend.senderName, (char*)messageToSend.body);
+    printf("%s" "[%s]: %s" RESET "\n", colorArray[message->color], client->name, (char*)messageToSend.body);
 
     //sereilize into buffer
     uint8_t buffer[1024];
@@ -112,4 +112,31 @@ void ServerReceivePrivateMessage(Client* client, ClientList* client_list, Messag
     uint8_t buffer[1024];
     Serialize(&messageToSend, buffer);
     send(targetUser->clientFd, buffer, sizeof(buffer), 0);
+}
+
+void ServerReceiveDataRequest(Client* client, char* request) {
+    ServerData* serverData = getServerData();
+
+    char header[] = "RECEIVE DATA";
+
+    if (strcmp(request, "player count") == 0) {
+        char playercount[4];
+        sprintf(playercount, "%d", serverData->clientList->size);
+        ServerSendDirectMessage(client, header, playercount);
+    }
+    if (strcmp(request, "max count") == 0) {
+        char maxCount[4];
+        sprintf(maxCount, "%d", serverData->clientList->capacity);
+        ServerSendDirectMessage(client, header, maxCount);
+    }
+    if (strcmp(request, "players") == 0) {
+        pthread_mutex_lock(&serverData->serverDataMutex);
+        char players[serverData->clientList->size * 25];
+        for (int i = 0; i < serverData->clientList->size; i++) {
+            strncat(players, serverData->clientList->clientBuffer[i]->name, 24);
+            strncat(players, " ", 1);
+        }
+        ServerSendDirectMessage(client, header, players);
+        pthread_mutex_unlock(&serverData->serverDataMutex);
+    }
 }

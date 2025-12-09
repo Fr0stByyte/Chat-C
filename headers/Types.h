@@ -40,6 +40,7 @@ typedef struct {
 typedef struct {
     int maxClients;
     int serverFd;
+    int doConnections;
 
     char serverPass[24];
     char serverBlacklist[MAX_STRINGS][MAX_LENGTH];
@@ -48,3 +49,8 @@ typedef struct {
     ClientList* clientList;
     pthread_mutex_t serverDataMutex;
 } ServerData;
+
+typedef struct {
+    int clientFd;
+    char name[24];
+} ClientData;

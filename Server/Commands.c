@@ -11,15 +11,14 @@ void shutDownServer() {
     ServerData* serverData = getServerData();
 
     pthread_mutex_lock(&serverData->serverDataMutex);
+    serverData->doConnections = 0;
     for (int i = 0; i < serverData->clientList->size; i++) {
         char header[] = "RECEIVE PRIVATE";
         char body[] = "Server is shutdown!";
         ServerSendDirectMessage(serverData->clientList->clientBuffer[i], header, body);
-        ServerReceiveDisconnectRequest(serverData->clientList->clientBuffer[i], serverData->clientList);
         shutdown(serverData->clientList->clientBuffer[i]->clientFd, SHUT_RDWR);
         close(serverData->clientList->clientBuffer[i]->clientFd);
     }
-
     shutdown(serverData->serverFd, SHUT_RDWR);
     close(serverData->serverFd);
     free(serverData->clientList);
@@ -41,7 +40,9 @@ int ProcessCommand(char* command, int argc, char* argv[]) {
 
     if (strcmp(command, "#shutdown") == 0) shutDownServer();
     if (strcmp(command, "#kick") == 0) {
-        char* message = argv[1];
+
+        if (argc < 1) return 0;
+        char message[24];
         char* plrName = argv[0];
 
         Client* targetUser = NULL;
@@ -49,6 +50,8 @@ int ProcessCommand(char* command, int argc, char* argv[]) {
             if (strcmp(plrName, serverData->clientList->clientBuffer[i]->name) == 0) targetUser = serverData->clientList->clientBuffer[i];
         }
         if (targetUser == NULL) return 0;
+        printf("enter kick message: ");
+        fgets(message, sizeof(message), stdin);
         kickPlr(targetUser, message);
         return 1;
     }

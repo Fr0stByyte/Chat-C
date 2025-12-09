@@ -45,6 +45,7 @@ void* handleConnections(void* data);
 void ServerSendDirectMessage(Client* client, char* header, char* message);
 void ServerSendGlobalMessage(ClientList* client_list, char* header, char* message);
 void ServerSendRejectMessage(int socket, char* reason);
+void ServerReceiveDataRequest(Client* client, char* request);
 /**
  * handles a request from a client, will check message header to determine actions [write more]
  * @param[in] receivedMessage message recieved from the client
