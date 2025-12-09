@@ -12,11 +12,11 @@
 
 #include "../headers/Client.h"
 
+#include <errno.h>
 #include <signal.h>
 
 #include "../headers/Messages.h"
 char clientName[24];
-int nameSize;
 int clientColor;
 int connected = 0;
 int clientSocket;
@@ -30,23 +30,20 @@ void handleSigintClient() {
     closeClientConnection();
     exit(0);
 }
-void sendChatMessages(int socket) {
+void sendChatMessages() {
     char messageText[256];
     while (connected == 1) {
         fgets(messageText, sizeof(messageText), stdin);
         messageText[strcspn(messageText, "\n")] = '\0'; // remove newline
 
         if (strcmp(messageText, "#exit") == 0) {
-            shutdown(socket, SHUT_RDWR);
-            close(socket);
+            closeClientConnection();
             printf("Disconnected!\n");
-            connected = 0;
             return;
         }
         if(strcmp(messageText, "#pm") == 0) {
             char recipient[24];
             char msg[256];
-            char privateHeader[] = "SEND PRIVATE";
 
             printf("enter recepient name: ");
             fgets(recipient, sizeof(recipient), stdin);
@@ -56,17 +53,7 @@ void sendChatMessages(int socket) {
             fgets(msg, sizeof(msg), stdin);
             msg[strcspn(msg, "\n")] = '\0';
 
-            Message privateMessage = createMessage(
-                time(NULL),
-                clientColor,
-                clientName,
-                recipient,
-                privateHeader,
-                msg
-            );
-            uint8_t buffer[1024];
-            Serialize(&privateMessage, buffer);
-            send(socket, buffer, sizeof(buffer), 0);
+            ClientSendPrivateMessage(msg, recipient, clientColor, clientSocket);
         } else if (strcmp(messageText, "") == 0) {
         }else if (strcmp(messageText, "#changecolor") == 0) {
             int newColor = 0;
@@ -74,35 +61,20 @@ void sendChatMessages(int socket) {
             scanf("%d",&newColor);
             clientColor = newColor - 1;
         } else{
-            char recipient[] = "ALL";
-            char header[] = "SEND GLOBAL";
-            Message msg = createMessage(
-                time(NULL),
-                clientColor,
-                clientName,
-                recipient,
-                header,
-                messageText
-            );
-            uint8_t buffer[1024];
-            Serialize(&msg, buffer);
-            send(socket, buffer, sizeof(buffer), 0);
+            ClientSendGlobalMessage(messageText, clientColor, clientSocket);
         }
     }
 }
 
 void* receiveMessages(void* arg) {
-    int socket = *(int*)arg;
     uint8_t buffer[1024];
 
     while (1) {
-        ssize_t size = recv(socket, buffer, sizeof(buffer), 0);
+        ssize_t size = recv(clientSocket, buffer, sizeof(buffer), 0);
         if (size <= 0) {
             if (connected == 1) {
                 printf("Disconnected from server.\n");
-                shutdown(socket, SHUT_RDWR);
-                close(socket);
-                connected = 0;
+                closeClientConnection();
             }
             return NULL;
         }
@@ -119,10 +91,17 @@ void* receiveMessages(void* arg) {
         server.sin_port = htons(8080);
 
         int clientFd = socket(AF_INET, SOCK_STREAM, 0);
-        if (clientFd == -1) return -1;
+        if (clientFd < 0) {
+            printf(RED "Error creating socket! Error code: %d" RESET "\n", errno);
+            return -1;
+        };
 
         int isConnected = connect(clientFd, (struct sockaddr*)&server, sizeof(server));
-        if (isConnected == -1) return -1;
+        if (isConnected < 0) {
+            printf(RED "connect failed. Error code: %d" RESET "\n", errno);
+            if (errno == 111) printf("(connection refused. Server is likely offline.)\n");
+            return -1;
+        }
         return clientFd;
     }
     void initClient(int socket, char* username, int color, char* joinPass) {
@@ -151,5 +130,5 @@ void* receiveMessages(void* arg) {
         pthread_create(&recvThread, NULL, receiveMessages, &socket);
         pthread_detach(recvThread);
 
-        sendChatMessages(socket);
+        sendChatMessages();
 }

@@ -23,3 +23,6 @@ int createClientSocket(char ip[16]);
 void initClient(int socket, char* clientName, int clientColor, char* joinPass);
 void closeClientConnection();
 void processMessage(Message* message);
+
+void ClientSendGlobalMessage(char* message, int color, int clientSocket);
+void ClientSendPrivateMessage(char* message, char* receiver, int color, int clientSocket);

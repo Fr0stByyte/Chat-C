@@ -32,11 +32,8 @@ void handleJoin() {
     scanf("%d", &color);
 
     int socket = createClientSocket(ip);
-    if (socket > 0) {
-        initClient(socket, name, color - 1, pass);
-    } else {
-        printf("socket creation failed!\n");
-    }
+    if (socket < 0) return;
+    initClient(socket, name, color - 1, pass);
 }
 
 void handleCreate() {
@@ -51,6 +48,7 @@ void handleCreate() {
     scanf("%d", &maxClients);
 
     int sock = createServerSocket();
+    if (sock < 0) return; //I already printed the error so we are good
     initServer(sock, maxClients, pass);
 }
 
