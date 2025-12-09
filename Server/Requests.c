@@ -95,7 +95,7 @@ void ServerReceivePrivateMessage(Client* client, ClientList* client_list, Messag
         }
     }
     if (targetUser == NULL) {
-        char header[] = "RECEIVE GLOBAL";
+        char header[] = "RECEIVE PRIVATE";
         char serverMsg[] = "User does not exist!";
         ServerSendDirectMessage(client, header, serverMsg);
         return;

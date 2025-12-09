@@ -57,3 +57,5 @@ void ProcessRequest(Message* receivedMessage, Client* client);
  * @param[in] maxClients max number of clients that can be stored
  */
 void initServer(int socket, int maxClients, char* password);
+void* receiveCommands(void* data);
+ServerData* getServerData();
