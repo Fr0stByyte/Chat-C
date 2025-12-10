@@ -51,7 +51,7 @@ void ClientColorRequest(int clientSocket, int color) {
     char header[] = "REQUEST COLOR";
     Message message = createMessage(
         time(NULL),
-        color - 1,
+        color,
         "",
         "SERVER",
         header,

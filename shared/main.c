@@ -27,13 +27,13 @@ void handleJoin() {
 
     printf("type an integer that cooresponds to your desired text color:\n");
     for (int i = 0; i < 16; i++) {
-        printf("%d %s" "\n", i, colorArray[i]);
+        printf("%d %s" "\n", i, colorArray[i + 1]);
     }
     scanf("%d", &color);
 
     int socket = createClientSocket(ip);
     if (socket < 0) return;
-    initClient(socket, name, color - 1, pass);
+    initClient(socket, name, color, pass);
 }
 
 void handleCreate() {

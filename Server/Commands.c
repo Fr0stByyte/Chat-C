@@ -96,6 +96,7 @@ int ProcessCommand(char* command, int argc, char* argv[]) {
             }
             if (targetUser == NULL) return 0;
             kickPlr(targetUser, message);
+            printf("kicked player: %s", plrName);
         }
         return 1;
     }
@@ -116,6 +117,7 @@ int ProcessCommand(char* command, int argc, char* argv[]) {
         }
         if (targetUser == NULL) return 0;
         muteIP(targetUser, message);
+        printf("muted player: %s\n", plrName);
         return 1;
     }
     if (strcmp(command, "#unmute-ip") == 0) {
@@ -131,6 +133,7 @@ int ProcessCommand(char* command, int argc, char* argv[]) {
         }
         if (targetUser == NULL) return 0; // no user found
         unMuteIP(targetUser, message);
+        printf("unmuted ip: %s\n", plrName);
         return 1;
     }
     if (strcmp(command, "#ban-ip") == 0) {
@@ -146,6 +149,7 @@ int ProcessCommand(char* command, int argc, char* argv[]) {
         }
         if (targetUser == NULL) return 0;
         banIP(targetUser, message);
+        printf("banned player: %s\n", plrName);
         return 1;
     }
     if (strcmp(command, "#unban-ip") == 0) {
@@ -154,10 +158,27 @@ int ProcessCommand(char* command, int argc, char* argv[]) {
        struct in_addr targetAddr;
         inet_pton(AF_INET, argv[0], &targetAddr);
         unBanIP(&targetAddr);
+        printf("unbanned ip: %s\n", argv[0]);
         return 1;
     }
     if (strcmp(command, "#list") == 0) {
         veiwLists();
+        return 1;
+    }
+    if (strcmp(command, "#passwd") == 0) {
+        if (argc < 1) {
+            char pass[] = "";
+            pthread_mutex_lock(&serverData->serverDataMutex);
+            strcpy(serverData->serverPass, pass);
+            pthread_mutex_unlock(&serverData->serverDataMutex);
+            printf("server pass removed.\n");
+            return 1;
+        }
+        if (strlen(argv[0]) + 1 > 24) return 0;
+        pthread_mutex_lock(&serverData->serverDataMutex);
+        strncpy(serverData->serverPass, argv[0], 24);
+        pthread_mutex_unlock(&serverData->serverDataMutex);
+        printf("server pass set to: %s\n", serverData->serverPass);
         return 1;
     }
     return 0;

@@ -124,7 +124,6 @@ void* receiveMessages(void* arg) {
             header,
             joinPass
             );
-
         uint8_t buffer[1024];
         Serialize(&message, buffer);
         send(socket, buffer, sizeof(buffer), 0);

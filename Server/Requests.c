@@ -148,11 +148,10 @@ void ServerReceivePlayersRequest(Client* client) {
 }
 
 void ServerReceiveColorRequest(Client* client, int color) {
-
     if (color < 0 || color > 15) {
         ServerSendDirectMessage(client, "invalid color id");
         return;
     }
     client->color = color;
-    ServerSendDirectMessage(client, "color changed!");
+    ServerSendDirectMessage(client, "color changed");
 }
