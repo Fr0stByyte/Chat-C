@@ -102,6 +102,8 @@ void initServer(int socket, int clientsAllowed, char* password) {
     serverData.maxClients = clientsAllowed;
     serverData.clientList = CreateClientList(serverData.maxClients);
     serverData.censorFile = file;
+    serverData.muteList = createIpList(256);
+    serverData.banList = createIpList(256);
     //init mutex for currentClients
     pthread_mutex_init(&serverData.serverDataMutex, NULL);
 
@@ -137,21 +139,25 @@ void* handleConnections(void* data) {
             printf(RED "Could not accept connection: %d" RESET "\n", errno);
             if (errno == EINVAL) printf("(One of the arguments for accept() is invalid, ignore if this appears after shutdown)\n");
         }
+
+        ConnectionData connectionData = {};
+        connectionData.clientFd = clientSocket;
+        connectionData.clientAddr = client_addr;
         pthread_t tid;
-        pthread_create(&tid, NULL, handleConnectionRequest, &clientSocket);
+        pthread_create(&tid, NULL, handleConnectionRequest, &connectionData);
         pthread_detach(tid);
     }
     return NULL;
 }
 void* handleConnectionRequest(void* data) {
-    int clientSocket = *(int*)data;
+    ConnectionData* connectionData = (ConnectionData*)data;
     uint8_t buffer[1024];
-    ssize_t dataSize = recv(clientSocket, buffer, sizeof(buffer), 0);
+    ssize_t dataSize = recv(connectionData->clientFd, buffer, sizeof(buffer), 0);
     if (dataSize > 0 && serverData.clientList->size < serverData.maxClients) {
         //processes clients join message
         Message connectionRequest = Deserialize(buffer, dataSize);
         Client* client;
-        int accepted = ServerReceiveJoinRequest(clientSocket, serverData.clientList, &connectionRequest, &client, serverData.serverPass);
+        int accepted = ServerReceiveJoinRequest(connectionData->clientFd, &connectionRequest, &client, &connectionData->clientAddr);
         if (accepted == 1) {
             //create  thread to handle client messaging
             pthread_t tid;
@@ -159,15 +165,15 @@ void* handleConnectionRequest(void* data) {
             pthread_detach(tid);
         } else {
             //close connection
-            shutdown(clientSocket, SHUT_RDWR);
-            close(clientSocket);
+            shutdown(connectionData->clientFd, SHUT_RDWR);
+            close(connectionData->clientFd);
         }
     } else {
         //send reject message then close connection
         char reason[] = "SERVER IS FULL";
-        ServerSendRejectMessage(clientSocket, reason);
-        shutdown(clientSocket, SHUT_RDWR);
-        close(clientSocket);
+        ServerSendRejectMessage(connectionData->clientFd, reason);
+        shutdown(connectionData->clientFd, SHUT_RDWR);
+        close(connectionData->clientFd);
     }
     //thread terminates after work is done, handleClient still runs
     return NULL;
@@ -189,6 +195,12 @@ void* handleClient(void* data) {
 }
 void ProcessRequest(Message* receivedMessage, Client* client) {
     //calls fucntions based on header
+    if (client->isMuted == 1) {
+        char muteMessage[] = "You are muted!";
+        ServerSendDirectMessage(client, muteMessage);
+        return;
+    }
+
     for(int i = 0; i < lineCount; i++)
     {
         if (strcasestr((char*)receivedMessage->body, serverData.serverBlacklist[i]) != NULL) {

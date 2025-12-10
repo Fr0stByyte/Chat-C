@@ -15,12 +15,14 @@ ClientList* CreateClientList(int capacity) {
     pthread_mutex_init(&clientList->mutexLock, NULL);
     return clientList;
 }
-Client* CreateClient(int clientFd, char clientName[], int clientColor) {
+Client* CreateClient(int clientFd, char clientName[], int clientColor, struct sockaddr_in* ipAddress, int muteState) {
     //creates client object, then return
     Client* client = (Client*)malloc(sizeof(Client));
     client->clientFd = clientFd;
     client->color = clientColor;
+    client->isMuted = muteState;
     strcpy(client->name, clientName);
+    client->clientAddr = *ipAddress;
     return client;
 }
 void addClientToList(ClientList* clientList, Client* client) {

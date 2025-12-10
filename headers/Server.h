@@ -17,11 +17,12 @@
 void ServerReceiveGlobalMessage(Client* client, ClientList* client_list, Message* message);
 /**
  * handles request sent to client to connect to a room
- * @param client client that wishes to connect
- * @param clients
+ * @param socket client socket that wishes to connect
+ * @param clientReturn returned client object
  * @param message connection data (text color, name)
+ * @param ipAddress ip of client
  */
-int ServerReceiveJoinRequest(int socket, ClientList* client_list, Message* message, Client** clientReturn, char* serverPass);
+int ServerReceiveJoinRequest(int socket, Message* message, Client** clientReturn, struct sockaddr_in* ipAddress);
 void ServerReceiveDisconnectRequest(Client* client, ClientList* client_list);
 void ServerReceivePrivateMessage(Client* client, ClientList* client_list, Message* message);
 /**
@@ -43,7 +44,7 @@ void* handleClient(void* data);
 void* handleConnectionRequest(void* data);
 void* handleConnections(void* data);
 void ServerSendDirectMessage(Client* client, char* message);
-void ServerSendGlobalMessage(ClientList* client_list, char* header, char* message);
+void ServerSendGlobalMessage(ClientList* client_list, char* message);
 void ServerSendRejectMessage(int socket, char* reason);
 void ServerReceivePlayersRequest(Client* client);
 void ServerReceiveColorRequest(Client* client, int color);
@@ -61,3 +62,9 @@ void ProcessRequest(Message* receivedMessage, Client* client);
 void initServer(int socket, int maxClients, char* password);
 void* receiveCommands(void* data);
 ServerData* getServerData();
+
+IpList* createIpList(int capacity);
+void appendIPList(IpList* ipList, struct in_addr* address);
+void removefromIPList(IpList* ipList, struct in_addr* address);
+int checkIPList(IpList* ipList, struct in_addr* address);
+void destroyIPList(IpList* ipList);

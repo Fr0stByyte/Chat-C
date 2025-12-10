@@ -19,4 +19,5 @@ add_executable(Chat_C
         Client/TextProcessing.c
         Server/Commands.c
         Client/ClientSend.c
+        Server/IpList.c
 )

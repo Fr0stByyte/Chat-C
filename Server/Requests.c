@@ -11,6 +11,7 @@
 #include <string.h>
 #include <time.h>
 #include <unistd.h>
+#include <arpa/inet.h>
 
 #include "../headers/Messages.h"
 #include "../headers/Clients.h"
@@ -39,11 +40,22 @@ void ServerReceiveGlobalMessage(Client* client, ClientList* client_list, Message
         send(client_list->clientBuffer[i]->clientFd, buffer, sizeof(buffer), 0);
     }
 }
-int ServerReceiveJoinRequest(int socket, ClientList* client_list, Message* joinRequest, Client** clientReturn, char* serverPass) {
+int ServerReceiveJoinRequest(int socket, Message* joinRequest, Client** clientReturn, struct sockaddr_in* ipAddress) {
+    ServerData* serverData = getServerData();
     // gets client name and color from the connecting client
     int nameAllowed = 1;
+    int isMuted = 0;
 
-    if (strcmp(serverPass, joinRequest->body) != 0 && strcmp(serverPass, "") != 0) {
+
+    if (checkIPList(serverData->banList, &ipAddress->sin_addr) == 0) {
+        char reason[] = "YOU ARE BANNED";
+        ServerSendRejectMessage(socket, reason);
+        return 0;
+    }
+    //mute client if on muteList
+    if (checkIPList(serverData->muteList, &ipAddress->sin_addr) == 0) isMuted = 1;
+
+    if (strcmp(serverData->serverPass, joinRequest->body) != 0 && strcmp(serverData->serverPass, "") != 0) {
         //password is incorrect but is required
         char reason[] = "INCORRECT PASSWORD";
         ServerSendRejectMessage(socket, reason);
@@ -51,8 +63,8 @@ int ServerReceiveJoinRequest(int socket, ClientList* client_list, Message* joinR
     }
 
     //checks if name is already taken
-    for (int i =0; i < client_list->size; i++) {
-        if (strcmp(joinRequest->senderName, client_list->clientBuffer[i]->name) == 0) nameAllowed = 0;
+    for (int i =0; i < serverData->clientList->size; i++) {
+        if (strcmp(joinRequest->senderName, serverData->clientList->clientBuffer[i]->name) == 0) nameAllowed = 0;
     }
     //name cant be server or blank
     if (strcmp(joinRequest->senderName, "SERVER") == 0 && strcmp(joinRequest->senderName, "") == 0) nameAllowed = 0;
@@ -64,20 +76,25 @@ int ServerReceiveJoinRequest(int socket, ClientList* client_list, Message* joinR
         return 0;
     }
     // client is accepted, will create client
-    *clientReturn = CreateClient(socket, joinRequest->senderName, joinRequest->color);
+    *clientReturn = CreateClient(socket, joinRequest->senderName, joinRequest->color, ipAddress, isMuted);
+
     //adds client to global list of clients
-    addClientToList(client_list, *clientReturn);
+    addClientToList(serverData->clientList, *clientReturn);
     //create message to confirm client joining the room
-    char header[] = "NEW JOIN";
-    ServerSendGlobalMessage(client_list, header, (char*)joinRequest->senderName);
-    printf(YELLOW "[SERVER]: %s has joined the chatroom!" RESET "\n", (char*)joinRequest->senderName);
+    char joinMessage[256];
+    strcpy(joinMessage, joinRequest->senderName);
+    strcat(joinMessage, " has joined the server!");
+    ServerSendGlobalMessage(serverData->clientList, joinMessage);
+    printf(YELLOW "[SERVER]: %s has joined the chatroom!" RESET "\n", joinRequest->senderName);
     return 1;
 }
 
 void ServerReceiveDisconnectRequest(Client* client, ClientList* client_list) {
     //rempve client from list and end thread
-    char header[] = "NEW LEAVE";
-    ServerSendGlobalMessage(client_list, header, client->name);
+    char leaveMessage[256];
+    strcpy(leaveMessage, client->name);
+    strcat(leaveMessage, " has left the server!");
+    ServerSendGlobalMessage(client_list, client->name);
     printf(YELLOW "[SERVER]: %s has left the chatroom!" RESET "\n", client->name);
     removeClientFromList(client_list, client);
 }
