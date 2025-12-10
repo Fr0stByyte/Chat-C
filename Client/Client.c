@@ -61,6 +61,8 @@ void sendChatMessages() {
             ClientColorRequest(clientSocket, newColor);
         } else if (strcmp(messageText, "#list") == 0) {
             ClientGetPlayersRequest(clientSocket);
+        } else if (strcmp(messageText, "#help") == 0) {
+            printf("[INFO] for help, refer to the repo: https://github.com/Fr0stByyte/Chat-C");
         } else{
             ClientSendGlobalMessage(messageText, clientSocket);
         }

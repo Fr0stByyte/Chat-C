@@ -33,7 +33,7 @@ void handleJoin() {
 
     int socket = createClientSocket(ip);
     if (socket < 0) return;
-    initClient(socket, name, color, pass);
+    initClient(socket, name, color - 1, pass);
 }
 
 void handleCreate() {
@@ -55,12 +55,13 @@ void handleCreate() {
 int main() {
     while (1) {
         char choice[24];
-        printf("Welcome to Chat-C! type 'join' to join a room, or 'create' to create a room! Type 'exit' to exit the program! ");
+        printf("Welcome to Chat-C! type 'join' to join a room, or 'create' to create a room! Type 'help' for help! Type 'exit' to exit the program! ");
         fgets(choice, 24, stdin);
         choice[strcspn(choice, "\n")] = '\0';
         if (strcmp(choice, "join") == 0) handleJoin();
         if (strcmp(choice, "create") == 0) handleCreate();
         if (strcmp(choice, "exit") == 0) break;
+        if (strcmp(choice, "help") == 0) printf("[INFO] for help, refer to the repo: https://github.com/Fr0stByyte/Chat-C\n");
     }
     printf("Exiting!\n");
     return 0;

@@ -99,6 +99,10 @@ int ProcessCommand(char* command, int argc, char* argv[]) {
         }
         return 1;
     }
+    if (strcmp(command, "#help") == 0) {
+        printf("[INFO] for help, refer to the repo: https://github.com/Fr0stByyte/Chat-C\n");
+        return 1;
+    }
     if (strcmp(command, "#mute-ip") == 0) {
         if (argc < 1) return 0;
         char message[24];
