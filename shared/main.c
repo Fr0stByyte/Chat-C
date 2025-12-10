@@ -26,7 +26,7 @@ void handleJoin() {
     name[strcspn(name, "\n")] = '\0';
 
     printf("type an integer that cooresponds to your desired text color:\n");
-    for (int i = 0; i < 16; i++) {
+    for (int i = 0; i < 15; i++) {
         printf("%d %s" "\n", i, colorArray[i + 1]);
     }
     scanf("%d", &color);

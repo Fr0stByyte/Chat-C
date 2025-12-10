@@ -29,9 +29,9 @@ void ServerSendRejectMessage(int socket, char* reason) {
     char header[] = "REJECT ACTION";
     Message messageToSend = createMessage(
         time(NULL),
-        2,
+        0,
         sender,
-        "",
+        "reject",
         header,
         reason
     );

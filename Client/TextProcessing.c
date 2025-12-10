@@ -13,7 +13,6 @@ void processMessage(Message* message) {
     }
     if (strcmp(message->header, "REJECT ACTION") == 0) {
         printf(RED "SERVER REJECTED ACTION: %s" RESET "\n", message->body);
-        closeClientConnection();
     }
     if (strcmp(message->header, "RECEIVE PRIVATE") == 0) {
         const char* color = colorArray[message->color];

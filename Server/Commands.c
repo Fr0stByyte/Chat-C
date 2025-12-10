@@ -42,13 +42,20 @@ void kickPlr(Client* client, char* message) {
 
 void muteIP(Client* client, char* message) {
     ServerData* serverData = getServerData();
-    ServerSendDirectMessage(client, message);
+
+    char newMessage[256];
+    strcpy(newMessage, "You have been muted! Reason: ");
+    strcat(newMessage, message);
+    ServerSendDirectMessage(client, newMessage);
     appendIPList(serverData->muteList, &client->clientAddr.sin_addr);
     client->isMuted = 1;
 }
 void unMuteIP(Client* client, char* message) {
     ServerData* serverData = getServerData();
-    ServerSendDirectMessage(client, message);
+    char newMessage[256];
+    strcpy(newMessage, "You have been unmuted! Reason: ");
+    strcat(newMessage, message);
+    ServerSendDirectMessage(client, newMessage);
     removefromIPList(serverData->muteList, &client->clientAddr.sin_addr);
     client->isMuted = 0;
 }

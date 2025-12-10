@@ -139,7 +139,6 @@ void* handleConnections(void* data) {
             printf(RED "Could not accept connection: %d" RESET "\n", errno);
             if (errno == EINVAL) printf("(One of the arguments for accept() is invalid, ignore if this appears after shutdown)\n");
         }
-
         ConnectionData connectionData = {};
         connectionData.clientFd = clientSocket;
         connectionData.clientAddr = client_addr;
