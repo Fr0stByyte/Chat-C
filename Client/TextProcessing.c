@@ -25,7 +25,4 @@ void processMessage(Message* message) {
         const char* color = colorArray[(int)message->color];
         printf("%s" "[PRIVATE][%s]: %s" RESET "\n", color, message->senderName, message->body);
     }
-    if (strcmp(message->header, "RECEIVE DATA") == 0) {
-        printf(YELLOW "[%s]: DATA: %s" RESET "\n", message->senderName, message->body);
-    }
 }

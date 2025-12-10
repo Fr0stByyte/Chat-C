@@ -13,9 +13,8 @@ void shutDownServer() {
     pthread_mutex_lock(&serverData->serverDataMutex);
     serverData->doConnections = 0;
     for (int i = 0; i < serverData->clientList->size; i++) {
-        char header[] = "RECEIVE PRIVATE";
         char body[] = "Server is shutdown!";
-        ServerSendDirectMessage(serverData->clientList->clientBuffer[i], header, body);
+        ServerSendDirectMessage(serverData->clientList->clientBuffer[i], body);
         shutdown(serverData->clientList->clientBuffer[i]->clientFd, SHUT_RDWR);
         close(serverData->clientList->clientBuffer[i]->clientFd);
     }
@@ -30,7 +29,7 @@ void kickPlr(Client* client, char* message) {
     ServerData* serverData = getServerData();
 
     pthread_mutex_lock(&serverData->serverDataMutex);
-    ServerSendDirectMessage(client, "RECEIVE PRIVATE", message);
+    ServerSendDirectMessage(client, message);
     shutdown(client->clientFd, SHUT_RDWR);
     close(client->clientFd);
     pthread_mutex_unlock(&serverData->serverDataMutex);

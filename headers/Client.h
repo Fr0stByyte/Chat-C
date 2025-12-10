@@ -24,5 +24,7 @@ void initClient(int socket, char* clientName, int clientColor, char* joinPass);
 void closeClientConnection();
 void processMessage(Message* message);
 
-void ClientSendGlobalMessage(char* message, int color, int clientSocket);
-void ClientSendPrivateMessage(char* message, char* receiver, int color, int clientSocket);
+void ClientSendGlobalMessage(char* message, int clientSocket);
+void ClientSendPrivateMessage(char* message, char* receiver, int clientSocket);
+void ClientGetPlayersRequest(int clientSocket);
+void ClientColorRequest(int clientSocket, int color);

@@ -22,13 +22,13 @@ void ServerReceiveGlobalMessage(Client* client, ClientList* client_list, Message
     //create message
     Message messageToSend = createMessage(
         message->timeStamp,
-        message->color,
+        client->color,
         client->name,
         message->recipientName,
         header,
         message->body
         );
-    printf("%s" "[%s]: %s" RESET "\n", colorArray[message->color], client->name, (char*)messageToSend.body);
+    printf("%s" "[%s]: %s" RESET "\n", colorArray[client->color], client->name, (char*)messageToSend.body);
 
     //sereilize into buffer
     uint8_t buffer[1024];
@@ -52,10 +52,10 @@ int ServerReceiveJoinRequest(int socket, ClientList* client_list, Message* joinR
 
     //checks if name is already taken
     for (int i =0; i < client_list->size; i++) {
-        if (strcmp((char*)joinRequest->senderName, (char*)client_list->clientBuffer[i]->name) == 0) nameAllowed = 0;
+        if (strcmp(joinRequest->senderName, client_list->clientBuffer[i]->name) == 0) nameAllowed = 0;
     }
     //name cant be server or blank
-    if (strcmp((char*)joinRequest->senderName, "SERVER") == 0 && strcmp((char*)joinRequest->senderName, "") == 0) nameAllowed = 0;
+    if (strcmp(joinRequest->senderName, "SERVER") == 0 && strcmp(joinRequest->senderName, "") == 0) nameAllowed = 0;
 
     //refuses if name is taken or not allowed
     if (nameAllowed == 0) {
@@ -63,7 +63,8 @@ int ServerReceiveJoinRequest(int socket, ClientList* client_list, Message* joinR
         ServerSendRejectMessage(socket, reason);
         return 0;
     }
-    *clientReturn = CreateClient(socket, (char*)joinRequest->senderName, (int)joinRequest->color);
+    // client is accepted, will create client
+    *clientReturn = CreateClient(socket, joinRequest->senderName, joinRequest->color);
     //adds client to global list of clients
     addClientToList(client_list, *clientReturn);
     //create message to confirm client joining the room
@@ -95,48 +96,46 @@ void ServerReceivePrivateMessage(Client* client, ClientList* client_list, Messag
         }
     }
     if (targetUser == NULL) {
-        char header[] = "RECEIVE PRIVATE";
         char serverMsg[] = "User does not exist!";
-        ServerSendDirectMessage(client, header, serverMsg);
+        ServerSendDirectMessage(client, serverMsg);
         return;
     }
     char header[] = "RECEIVE PRIVATE";
     Message messageToSend = createMessage(
         time(NULL),
-        (int)message->color,
+        client->color,
         client->name,
         targetUser->name,
         header,
         (char*)message->body
     );
+    printf("%s" "[PRIVATE][%s]->[%s]: %s" RESET "\n", colorArray[client->color], client->name, messageToSend.recipientName, messageToSend.body);
     uint8_t buffer[1024];
     Serialize(&messageToSend, buffer);
     send(targetUser->clientFd, buffer, sizeof(buffer), 0);
 }
 
-void ServerReceiveDataRequest(Client* client, char* request) {
+void ServerReceivePlayersRequest(Client* client) {
     ServerData* serverData = getServerData();
+    pthread_mutex_lock(&serverData->serverDataMutex);
+    char players[1024];
+    sprintf(players, "%d", serverData->clientList->size);
+    strcat(players, " Active Users: ");
 
-    char header[] = "RECEIVE DATA";
+    for (int i = 0; i < serverData->clientList->size; i++) {
+        strncat(players, serverData->clientList->clientBuffer[i]->name, 24);
+        strncat(players, ", ", 1);
+    }
+    ServerSendDirectMessage(client, players);
+    pthread_mutex_unlock(&serverData->serverDataMutex);
+}
 
-    if (strcmp(request, "player count") == 0) {
-        char playercount[4];
-        sprintf(playercount, "%d", serverData->clientList->size);
-        ServerSendDirectMessage(client, header, playercount);
+void ServerReceiveColorRequest(Client* client, int color) {
+
+    if (color < 0 || color > 15) {
+        ServerSendDirectMessage(client, "invalid color id");
+        return;
     }
-    if (strcmp(request, "max count") == 0) {
-        char maxCount[4];
-        sprintf(maxCount, "%d", serverData->clientList->capacity);
-        ServerSendDirectMessage(client, header, maxCount);
-    }
-    if (strcmp(request, "players") == 0) {
-        pthread_mutex_lock(&serverData->serverDataMutex);
-        char players[serverData->clientList->size * 25];
-        for (int i = 0; i < serverData->clientList->size; i++) {
-            strncat(players, serverData->clientList->clientBuffer[i]->name, 24);
-            strncat(players, " ", 1);
-        }
-        ServerSendDirectMessage(client, header, players);
-        pthread_mutex_unlock(&serverData->serverDataMutex);
-    }
+    client->color = color;
+    ServerSendDirectMessage(client, "color changed!");
 }

@@ -192,23 +192,16 @@ void ProcessRequest(Message* receivedMessage, Client* client) {
     for(int i = 0; i < lineCount; i++)
     {
         if (strcasestr((char*)receivedMessage->body, serverData.serverBlacklist[i]) != NULL) {
-            char header[] = "RECEIVE PRIVATE";
             char serverMsg[] = "phrase is blacklisted!";
-            ServerSendDirectMessage(client, header, serverMsg);
+            ServerSendDirectMessage(client, serverMsg);
             return;
         }
     }
 
-    if (receivedMessage->color < 0 || receivedMessage->color > 15) {
-        char header[] = "RECEIVE PRIVATE";
-        char serverMsg[] = "message is illegal: invalid color";
-        ServerSendDirectMessage(client, header, serverMsg);
-        return;
-    }
-
     if (strcmp(receivedMessage->header, "SEND GLOBAL") == 0) ServerReceiveGlobalMessage(client, serverData.clientList, receivedMessage);
     if (strcmp(receivedMessage->header, "SEND PRIVATE") == 0) ServerReceivePrivateMessage(client, serverData.clientList, receivedMessage);
-    if (strcmp(receivedMessage->header, "REQUEST DATA") == 0) ServerReceiveDataRequest(client, receivedMessage->body);
+    if (strcmp(receivedMessage->header, "REQUEST PLAYERS") == 0) ServerReceivePlayersRequest(client);
+    if (strcmp(receivedMessage->header, "REQUEST COLOR") == 0) ServerReceiveColorRequest(client, receivedMessage->color);
 }
 
 ServerData* getServerData() {

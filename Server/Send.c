@@ -9,14 +9,14 @@
 
 #include "../headers/Messages.h"
 
-void ServerSendDirectMessage(Client* client, char* header, char* message) {
+void ServerSendDirectMessage(Client* client, char* message) {
     char sender[] = "SERVER";
     Message messageToSend = createMessage(
         time(NULL),
         4,
         sender,
         client->name,
-        header,
+        "RECEIVE PRIVATE",
         message
     );
     uint8_t buffer[1024];

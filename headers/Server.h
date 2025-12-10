@@ -42,10 +42,11 @@ void* handleClient(void* data);
  */
 void* handleConnectionRequest(void* data);
 void* handleConnections(void* data);
-void ServerSendDirectMessage(Client* client, char* header, char* message);
+void ServerSendDirectMessage(Client* client, char* message);
 void ServerSendGlobalMessage(ClientList* client_list, char* header, char* message);
 void ServerSendRejectMessage(int socket, char* reason);
-void ServerReceiveDataRequest(Client* client, char* request);
+void ServerReceivePlayersRequest(Client* client);
+void ServerReceiveColorRequest(Client* client, int color);
 /**
  * handles a request from a client, will check message header to determine actions [write more]
  * @param[in] receivedMessage message recieved from the client

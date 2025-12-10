@@ -33,7 +33,7 @@ void handleJoin() {
 
     int socket = createClientSocket(ip);
     if (socket < 0) return;
-    initClient(socket, name, color - 1, pass);
+    initClient(socket, name, color, pass);
 }
 
 void handleCreate() {

@@ -17,7 +17,6 @@
 
 #include "../headers/Messages.h"
 char clientName[24];
-int clientColor;
 int connected = 0;
 int clientSocket;
 
@@ -53,15 +52,17 @@ void sendChatMessages() {
             fgets(msg, sizeof(msg), stdin);
             msg[strcspn(msg, "\n")] = '\0';
 
-            ClientSendPrivateMessage(msg, recipient, clientColor, clientSocket);
+            ClientSendPrivateMessage(msg, recipient, clientSocket);
         } else if (strcmp(messageText, "") == 0) {
-        }else if (strcmp(messageText, "#changecolor") == 0) {
+        }else if (strcmp(messageText, "#color") == 0) {
             int newColor = 0;
             printf("enter new color: ");
             scanf("%d",&newColor);
-            clientColor = newColor - 1;
+            ClientColorRequest(clientSocket, newColor);
+        } else if (strcmp(messageText, "#list") == 0) {
+            ClientGetPlayersRequest(clientSocket);
         } else{
-            ClientSendGlobalMessage(messageText, clientColor, clientSocket);
+            ClientSendGlobalMessage(messageText, clientSocket);
         }
     }
 }
@@ -110,12 +111,12 @@ void* receiveMessages(void* arg) {
         connected = 1;
         char header[] = "REQUEST CONNECT";
         char recipient[] = "SERVER";
-        clientColor = color;
         strcpy(clientName, username);
 
+        // create a messaging requesting the client join
         Message message = createMessage(
             time(NULL),
-            clientColor,
+            color,
            clientName,
             recipient,
             header,
@@ -129,6 +130,6 @@ void* receiveMessages(void* arg) {
         pthread_t recvThread;
         pthread_create(&recvThread, NULL, receiveMessages, &socket);
         pthread_detach(recvThread);
-
+        ClientGetPlayersRequest(clientSocket);
         sendChatMessages();
 }
