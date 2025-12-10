@@ -11,6 +11,7 @@
 #include <string.h>
 #include <time.h>
 #include <unistd.h>
+#include <arpa/inet.h>
 
 #include "../headers/Messages.h"
 #include "../headers/Clients.h"
@@ -22,13 +23,13 @@ void ServerReceiveGlobalMessage(Client* client, ClientList* client_list, Message
     //create message
     Message messageToSend = createMessage(
         message->timeStamp,
-        (int)message->color,
-        (char*)message->senderName,
-        (char*)message->recipientName,
+        client->color,
+        client->name,
+        message->recipientName,
         header,
-        (char*)message->body
+        message->body
         );
-    printf("%s" "[%s]: %s" RESET "\n", colorArray[message->color], (char*)messageToSend.senderName, (char*)messageToSend.body);
+    printf("%s" "[%s]: %s" RESET "\n", colorArray[client->color], client->name, (char*)messageToSend.body);
 
     //sereilize into buffer
     uint8_t buffer[1024];
@@ -39,11 +40,22 @@ void ServerReceiveGlobalMessage(Client* client, ClientList* client_list, Message
         send(client_list->clientBuffer[i]->clientFd, buffer, sizeof(buffer), 0);
     }
 }
-int ServerReceiveJoinRequest(int socket, ClientList* client_list, Message* joinRequest, Client** clientReturn, char* serverPass) {
+int ServerReceiveJoinRequest(int socket, Message* joinRequest, Client** clientReturn, struct sockaddr_in* ipAddress) {
+    ServerData* serverData = getServerData();
     // gets client name and color from the connecting client
     int nameAllowed = 1;
+    int isMuted = 0;
 
-    if (strcmp(serverPass, joinRequest->body) != 0 && strcmp(serverPass, "") != 0) {
+
+    if (checkIPList(serverData->banList, &ipAddress->sin_addr) == 0) {
+        char reason[] = "YOU ARE BANNED";
+        ServerSendRejectMessage(socket, reason);
+        return 0;
+    }
+    //mute client if on muteList
+    if (checkIPList(serverData->muteList, &ipAddress->sin_addr) == 0) isMuted = 1;
+
+    if (strcmp(serverData->serverPass, joinRequest->body) != 0 && strcmp(serverData->serverPass, "") != 0) {
         //password is incorrect but is required
         char reason[] = "INCORRECT PASSWORD";
         ServerSendRejectMessage(socket, reason);
@@ -51,11 +63,11 @@ int ServerReceiveJoinRequest(int socket, ClientList* client_list, Message* joinR
     }
 
     //checks if name is already taken
-    for (int i =0; i < client_list->size; i++) {
-        if (strcmp((char*)joinRequest->senderName, (char*)client_list->clientBuffer[i]->name) == 0) nameAllowed = 0;
+    for (int i =0; i < serverData->clientList->size; i++) {
+        if (strcmp(joinRequest->senderName, serverData->clientList->clientBuffer[i]->name) == 0) nameAllowed = 0;
     }
     //name cant be server or blank
-    if (strcmp((char*)joinRequest->senderName, "SERVER") == 0 && strcmp((char*)joinRequest->senderName, "") == 0) nameAllowed = 0;
+    if (strcmp(joinRequest->senderName, "SERVER") == 0 && strcmp(joinRequest->senderName, "") == 0) nameAllowed = 0;
 
     //refuses if name is taken or not allowed
     if (nameAllowed == 0) {
@@ -63,20 +75,26 @@ int ServerReceiveJoinRequest(int socket, ClientList* client_list, Message* joinR
         ServerSendRejectMessage(socket, reason);
         return 0;
     }
-    *clientReturn = CreateClient(socket, (char*)joinRequest->senderName, (int)joinRequest->color);
+    // client is accepted, will create client
+    *clientReturn = CreateClient(socket, joinRequest->senderName, joinRequest->color, ipAddress, isMuted);
+
     //adds client to global list of clients
-    addClientToList(client_list, *clientReturn);
+    addClientToList(serverData->clientList, *clientReturn);
     //create message to confirm client joining the room
-    char header[] = "NEW JOIN";
-    ServerSendGlobalMessage(client_list, header, (char*)joinRequest->senderName);
-    printf(YELLOW "[SERVER]: %s has joined the chatroom!" RESET "\n", (char*)joinRequest->senderName);
+    char joinMessage[256];
+    strcpy(joinMessage, joinRequest->senderName);
+    strcat(joinMessage, " has joined the server!");
+    ServerSendGlobalMessage(serverData->clientList, joinMessage);
+    printf(YELLOW "[SERVER]: %s has joined the chatroom!" RESET "\n", joinRequest->senderName);
     return 1;
 }
 
 void ServerReceiveDisconnectRequest(Client* client, ClientList* client_list) {
     //rempve client from list and end thread
-    char header[] = "NEW LEAVE";
-    ServerSendGlobalMessage(client_list, header, client->name);
+    char leaveMessage[256];
+    strcpy(leaveMessage, client->name);
+    strcat(leaveMessage, " has left the server!");
+    ServerSendGlobalMessage(client_list, client->name);
     printf(YELLOW "[SERVER]: %s has left the chatroom!" RESET "\n", client->name);
     removeClientFromList(client_list, client);
 }
@@ -95,21 +113,45 @@ void ServerReceivePrivateMessage(Client* client, ClientList* client_list, Messag
         }
     }
     if (targetUser == NULL) {
-        char header[] = "RECEIVE GLOBAL";
         char serverMsg[] = "User does not exist!";
-        ServerSendDirectMessage(client, header, serverMsg);
+        ServerSendDirectMessage(client, serverMsg);
         return;
     }
     char header[] = "RECEIVE PRIVATE";
     Message messageToSend = createMessage(
         time(NULL),
-        (int)message->color,
+        client->color,
         client->name,
         targetUser->name,
         header,
         (char*)message->body
     );
+    printf("%s" "[PRIVATE][%s]->[%s]: %s" RESET "\n", colorArray[client->color], client->name, messageToSend.recipientName, messageToSend.body);
     uint8_t buffer[1024];
     Serialize(&messageToSend, buffer);
     send(targetUser->clientFd, buffer, sizeof(buffer), 0);
+}
+
+void ServerReceivePlayersRequest(Client* client) {
+    ServerData* serverData = getServerData();
+    pthread_mutex_lock(&serverData->serverDataMutex);
+    char players[1024];
+    sprintf(players, "%d", serverData->clientList->size);
+    strcat(players, " Active Users: ");
+
+    for (int i = 0; i < serverData->clientList->size; i++) {
+        strncat(players, serverData->clientList->clientBuffer[i]->name, 24);
+        strncat(players, ", ", 1);
+    }
+    ServerSendDirectMessage(client, players);
+    pthread_mutex_unlock(&serverData->serverDataMutex);
+}
+
+void ServerReceiveColorRequest(Client* client, int color) {
+    if (color < 0 || color > 15) {
+        ServerSendDirectMessage(client, "invalid color id");
+        return;
+    }
+    client->color = color;
+    ServerSendDirectMessage(client, "color changed");
 }

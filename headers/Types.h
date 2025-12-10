@@ -4,9 +4,12 @@
 
 #ifndef CHAT_C_TYPES_H
 #define CHAT_C_TYPES_H
+#define MAX_LENGTH 64
+#define MAX_STRINGS 64
 #pragma once
 #include <netinet/in.h>
 #include <pthread.h>
+#include <stdio.h>
 
 #endif //CHAT_C_TYPES_H
 
@@ -14,8 +17,15 @@ typedef struct {
     int clientFd;
     char name[24];
     int color;
-    int isAllowed;
+    int isMuted;
+
+    struct sockaddr_in clientAddr;
 } Client;
+
+typedef struct {
+    int clientFd;
+    struct sockaddr_in clientAddr;
+} ConnectionData;
 
 typedef struct {
     int size;
@@ -33,3 +43,29 @@ typedef struct {
     char header[24];
     char body[256];
 } Message;
+
+typedef struct {
+    char** buffer;
+    int length;
+    int capacity;
+} IpList;
+
+typedef struct {
+    int maxClients;
+    int serverFd;
+    int doConnections;
+
+    char serverPass[24];
+    char serverBlacklist[MAX_STRINGS][MAX_LENGTH];
+    IpList* muteList;
+    IpList* banList;
+
+    FILE* censorFile;
+    ClientList* clientList;
+    pthread_mutex_t serverDataMutex;
+} ServerData;
+
+typedef struct {
+    int clientFd;
+    char name[24];
+} ClientData;

@@ -9,14 +9,14 @@
 
 #include "../headers/Messages.h"
 
-void ServerSendDirectMessage(Client* client, char* header, char* message) {
+void ServerSendDirectMessage(Client* client, char* message) {
     char sender[] = "SERVER";
     Message messageToSend = createMessage(
         time(NULL),
         4,
         sender,
         client->name,
-        header,
+        "RECEIVE PRIVATE",
         message
     );
     uint8_t buffer[1024];
@@ -29,9 +29,9 @@ void ServerSendRejectMessage(int socket, char* reason) {
     char header[] = "REJECT ACTION";
     Message messageToSend = createMessage(
         time(NULL),
-        2,
+        0,
         sender,
-        "",
+        "reject",
         header,
         reason
     );
@@ -39,13 +39,13 @@ void ServerSendRejectMessage(int socket, char* reason) {
     Serialize(&messageToSend, buffer);
     send(socket, buffer, sizeof(buffer), 0);
 }
-
-void ServerSendGlobalMessage(ClientList* client_list, char* header, char* message) {
+void ServerSendGlobalMessage(ClientList* client_list, char* message) {
     char sender[] = "SERVER";
     char recipient[] = "ALL";
+    char header[] = "RECEIVE GLOBAL";
     Message messageToClient = createMessage(
         time(NULL),
-        0,
+        13,
         sender,
         recipient,
         header,

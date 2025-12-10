@@ -23,3 +23,8 @@ int createClientSocket(char ip[16]);
 void initClient(int socket, char* clientName, int clientColor, char* joinPass);
 void closeClientConnection();
 void processMessage(Message* message);
+
+void ClientSendGlobalMessage(char* message, int clientSocket);
+void ClientSendPrivateMessage(char* message, char* receiver, int clientSocket);
+void ClientGetPlayersRequest(int clientSocket);
+void ClientColorRequest(int clientSocket, int color);

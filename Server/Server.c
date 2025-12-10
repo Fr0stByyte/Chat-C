@@ -14,30 +14,19 @@
 #include "../headers/Clients.h"
 #include "../headers/Server.h"
 
+#include <errno.h>
 #include <signal.h>
 #include <unistd.h>
 #include <arpa/inet.h>
 
-#define MAX_LENGTH 64
-#define MAX_STRINGS 64
-
-int serverSockFd;
-int shouldHandle = 1;
-int maxClients;
-int currentClients = 0;
-
-char serverBlacklist[MAX_STRINGS][MAX_LENGTH];
+ServerData serverData = {};
 int lineCount;
-char serverPass[24];
-
-pthread_mutex_t currentClientsMutex;
-ClientList* clients;
 
 int getBlacklist(FILE *file) {
     int i = 0;
-    while (fgets(serverBlacklist[i], MAX_LENGTH, file))
+    while (fgets(serverData.serverBlacklist[i], MAX_LENGTH, file))
     {
-        serverBlacklist[i][strcspn(serverBlacklist[i], "\r\n")] = '\0';
+        serverData.serverBlacklist[i][strcspn(serverData.serverBlacklist[i], "\r\n")] = '\0';
         i++;
     }
     rewind(file);
@@ -45,9 +34,18 @@ int getBlacklist(FILE *file) {
     return i;
 }
 
-void handleSigintServer() {
-    shutdown(serverSockFd, SHUT_RDWR);
-    close(serverSockFd);
+void handleSigINT() {
+    pthread_mutex_lock(&serverData.serverDataMutex);
+    serverData.doConnections = 0;
+    for (int i = 0; i < serverData.clientList->size; i++) {
+        shutdown(serverData.clientList->clientBuffer[i]->clientFd, SHUT_RDWR);
+        close(serverData.clientList->clientBuffer[i]->clientFd);
+        free(serverData.clientList->clientBuffer[i]);
+    }
+    free(serverData.clientList);
+    shutdown(serverData.serverFd, SHUT_RDWR);
+    close(serverData.serverFd);
+    pthread_mutex_unlock(&serverData.serverDataMutex);
     exit(0);
 }
 
@@ -62,93 +60,119 @@ int createServerSocket() {
     int sockfd = socket(AF_INET, SOCK_STREAM, 0);
 
     //do some checks
-    if (sockfd == -1) return -1;
-    if (bind(sockfd, (struct sockaddr*)&server_addr, sizeof(server_addr)) == -1) return -1;
+    if (sockfd < 0) {
+        printf(RED "Failed to create socket. Error code: %d" RESET "\n", errno);
+        return -1;
+    }
+    int opt = 1;
+    //allows for quick rebinding, was a pain to figure out :(
+    setsockopt(sockfd, SOL_SOCKET, SO_REUSEADDR, &opt, sizeof(opt));
+    if (bind(sockfd, (struct sockaddr*)&server_addr, sizeof(server_addr)) < 0) {
+        printf(RED "Failed to bind socket. Error code: %d" RESET "\n", errno);
+        if (errno == EADDRINUSE) printf("(Address is already in use, a server is running already on your machine.)\n");
+        return -1;
+    };
     //listen on the socket for connections, non-blocking thankfully
-    listen(sockfd, SOMAXCONN);
+    if (listen(sockfd, SOMAXCONN) < 0) {
+        printf("Failed to listen. Error code: %d\n", errno);
+        return -1;
+    };
+    printf("created socket!\n");
     return sockfd;
 }
 void initServer(int socket, int clientsAllowed, char* password) {
-    signal(SIGINT, handleSigintServer);
+    signal(SIGINT, handleSigINT);
 
     FILE *file = fopen("censor.txt", "r");
     if (file == NULL) {
-        perror("Could not create server: censor file not found!\n");
+        printf(RED "Could not create server: censor file not found!" RESET "\n");
         return;
     };
     if (strlen(password) >= 24) {
-        perror("Password is too long!\n");
+        printf(RED "Password is too long!" RESET "\n");
         return;
     }
 
+
     //initiaizes global variables and thread
-    strncpy(serverPass, password, 24);
-    serverSockFd = socket;
-    maxClients = clientsAllowed;
-    clients = CreateClientList(maxClients);
+    // no mutex locking here since this is intialization and this always gets called here first
+    serverData.doConnections = 1;
+    strncpy(serverData.serverPass, password, 24);
+    serverData.serverFd = socket;
+    serverData.maxClients = clientsAllowed;
+    serverData.clientList = CreateClientList(serverData.maxClients);
+    serverData.censorFile = file;
+    serverData.muteList = createIpList(256);
+    serverData.banList = createIpList(256);
+    //init mutex for currentClients
+    pthread_mutex_init(&serverData.serverDataMutex, NULL);
+
     lineCount = getBlacklist(file);
 
     char hostname[256];
-    struct hostent *hostData;
     gethostname(hostname, 256);
-    hostData = gethostbyname(hostname);
+    struct hostent *hostData = gethostbyname(hostname);
 
     printf("listening on IPS: \n");
     for (int i = 0; hostData->h_addr_list[i] != NULL; i++) {
         printf("%s\n", inet_ntoa(*(struct in_addr*)hostData->h_addr_list[i]));
     }
-    //init mutex for currentClients
-    pthread_mutex_init(&currentClientsMutex, NULL);
-
+    if (strcmp(serverData.serverPass, "") == 0) printf("No password is set!\n");
     //creates new thread to handle connection requests
-    pthread_t tid;
-    pthread_create(&tid, NULL, handleConnections, NULL);
-    printf("%d max clients allowed\n", maxClients);
+    pthread_t connectionThread;
+    pthread_create(&connectionThread, NULL, handleConnections, NULL);
+    pthread_detach(connectionThread);
+    printf("%d max clients allowed\n", serverData.maxClients);
 
-    if (strcmp(serverPass, "") == 0) printf("No password is set!\n");
-    pthread_join(tid, NULL);
+    //creates new thread to handle commands
+    pthread_t commandThread;
+    pthread_create(&commandThread, NULL, receiveCommands, NULL);
+    pthread_join(commandThread, NULL);
 }
 void* handleConnections(void* data) {
-    while (1) {
+    while (serverData.doConnections == 1) {
         //creates socket for client
         struct sockaddr_in client_addr;
         socklen_t client_addr_size = sizeof(client_addr);
-        int clientSocket = accept(serverSockFd, (struct sockaddr*)&client_addr, &client_addr_size); // yeilds thread
+        int clientSocket = accept(serverData.serverFd, (struct sockaddr*)&client_addr, &client_addr_size); // yeilds thread
+        if (clientSocket < 0) {
+            printf(RED "Could not accept connection: %d" RESET "\n", errno);
+            if (errno == EINVAL) printf("(One of the arguments for accept() is invalid, ignore if this appears after shutdown)\n");
+        }
+        ConnectionData connectionData = {};
+        connectionData.clientFd = clientSocket;
+        connectionData.clientAddr = client_addr;
         pthread_t tid;
-        pthread_create(&tid, NULL, handleConnectionRequest, &clientSocket);
+        pthread_create(&tid, NULL, handleConnectionRequest, &connectionData);
         pthread_detach(tid);
     }
     return NULL;
 }
 void* handleConnectionRequest(void* data) {
-    int socket = *(int*)data;
+    ConnectionData* connectionData = (ConnectionData*)data;
     uint8_t buffer[1024];
-    ssize_t dataSize = recv(socket, buffer, sizeof(buffer), 0);
-    if (dataSize > 0 && currentClients < maxClients) {
+    ssize_t dataSize = recv(connectionData->clientFd, buffer, sizeof(buffer), 0);
+    if (dataSize > 0 && serverData.clientList->size < serverData.maxClients) {
         //processes clients join message
         Message connectionRequest = Deserialize(buffer, dataSize);
         Client* client;
-        int accepted = ServerReceiveJoinRequest(socket, clients, &connectionRequest, &client, serverPass);
+        int accepted = ServerReceiveJoinRequest(connectionData->clientFd, &connectionRequest, &client, &connectionData->clientAddr);
         if (accepted == 1) {
-            //lock and unlock mutex to prevent race condition in currentClients
-            pthread_mutex_lock(&currentClientsMutex);
-            currentClients += 1;
-            pthread_mutex_unlock(&currentClientsMutex);
             //create  thread to handle client messaging
             pthread_t tid;
             pthread_create(&tid, NULL, handleClient, client);
             pthread_detach(tid);
         } else {
             //close connection
-            shutdown(socket, SHUT_RDWR);
-            close(socket);
+            shutdown(connectionData->clientFd, SHUT_RDWR);
+            close(connectionData->clientFd);
         }
     } else {
         //send reject message then close connection
         char reason[] = "SERVER IS FULL";
-        ServerSendRejectMessage(socket, reason);
-        shutdown(socket, SHUT_RDWR);
-        close(socket);
+        ServerSendRejectMessage(connectionData->clientFd, reason);
+        shutdown(connectionData->clientFd, SHUT_RDWR);
+        close(connectionData->clientFd);
     }
     //thread terminates after work is done, handleClient still runs
     return NULL;
@@ -163,35 +187,34 @@ void* handleClient(void* data) {
         Message clientMessage = Deserialize(buffer, dataSize);
         ProcessRequest(&clientMessage, client);
     }
-    ServerReceiveDisconnectRequest(client, clients);
+    ServerReceiveDisconnectRequest(client, serverData.clientList);
     shutdown(client->clientFd, SHUT_RDWR);
     close(client->clientFd);
-
-    //lock and unlock mutex to prevent race condition in currentClients
-    pthread_mutex_lock(&currentClientsMutex);
-    currentClients -= 1;
-    pthread_mutex_unlock(&currentClientsMutex);
     return NULL;
 }
 void ProcessRequest(Message* receivedMessage, Client* client) {
     //calls fucntions based on header
+    if (client->isMuted == 1) {
+        char muteMessage[] = "You are muted!";
+        ServerSendDirectMessage(client, muteMessage);
+        return;
+    }
+
     for(int i = 0; i < lineCount; i++)
     {
-        if (strcasestr((char*)receivedMessage->body, serverBlacklist[i]) != NULL) {
-            char header[] = "RECEIVE PRIVATE";
+        if (strcasestr((char*)receivedMessage->body, serverData.serverBlacklist[i]) != NULL) {
             char serverMsg[] = "phrase is blacklisted!";
-            ServerSendDirectMessage(client, header, serverMsg);
+            ServerSendDirectMessage(client, serverMsg);
             return;
         }
     }
 
-    if (receivedMessage->color < 0 || receivedMessage->color > 15) {
-        char header[] = "RECEIVE PRIVATE";
-        char serverMsg[] = "message is illegal: invalid color";
-        ServerSendDirectMessage(client, header, serverMsg);
-        return;
-    }
+    if (strcmp(receivedMessage->header, "SEND GLOBAL") == 0) ServerReceiveGlobalMessage(client, serverData.clientList, receivedMessage);
+    if (strcmp(receivedMessage->header, "SEND PRIVATE") == 0) ServerReceivePrivateMessage(client, serverData.clientList, receivedMessage);
+    if (strcmp(receivedMessage->header, "REQUEST PLAYERS") == 0) ServerReceivePlayersRequest(client);
+    if (strcmp(receivedMessage->header, "REQUEST COLOR") == 0) ServerReceiveColorRequest(client, receivedMessage->color);
+}
 
-    if (strcmp((char*)receivedMessage->header, "SEND GLOBAL") == 0) ServerReceiveGlobalMessage(client, clients, receivedMessage);
-    if (strcmp((char*)receivedMessage->header, "SEND PRIVATE") == 0) ServerReceivePrivateMessage(client, clients, receivedMessage);
+ServerData* getServerData() {
+    return &serverData;
 }

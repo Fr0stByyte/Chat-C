@@ -26,17 +26,14 @@ void handleJoin() {
     name[strcspn(name, "\n")] = '\0';
 
     printf("type an integer that cooresponds to your desired text color:\n");
-    for (int i = 0; i < 16; i++) {
-        printf("%d %s" "\n", i, colorArray[i]);
+    for (int i = 0; i < 15; i++) {
+        printf("%d %s" "\n", i, colorArray[i + 1]);
     }
     scanf("%d", &color);
 
     int socket = createClientSocket(ip);
-    if (socket > 0) {
-        initClient(socket, name, color - 1, pass);
-    } else {
-        printf("socket creation failed!\n");
-    }
+    if (socket < 0) return;
+    initClient(socket, name, color, pass);
 }
 
 void handleCreate() {
@@ -51,18 +48,20 @@ void handleCreate() {
     scanf("%d", &maxClients);
 
     int sock = createServerSocket();
+    if (sock < 0) return; //I already printed the error so we are good
     initServer(sock, maxClients, pass);
 }
 
 int main() {
     while (1) {
         char choice[24];
-        printf("Welcome to Chat-C! type 'join' to join a room, or 'create' to create a room! Type 'exit' to exit the program! ");
+        printf(BRIGHT_BLUE "Welcome to Chat-C! type 'join' to join a room, or 'create' to create a room! Type 'help' for help! Type 'exit' to exit the program! " RESET);
         fgets(choice, 24, stdin);
         choice[strcspn(choice, "\n")] = '\0';
         if (strcmp(choice, "join") == 0) handleJoin();
         if (strcmp(choice, "create") == 0) handleCreate();
         if (strcmp(choice, "exit") == 0) break;
+        if (strcmp(choice, "help") == 0) printf("[INFO] for help, refer to the repo: https://github.com/Fr0stByyte/Chat-C\n");
     }
     printf("Exiting!\n");
     return 0;
