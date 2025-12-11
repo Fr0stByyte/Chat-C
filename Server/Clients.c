@@ -26,6 +26,7 @@ Client* CreateClient(int clientFd, char clientName[], int clientColor, struct so
     return client;
 }
 void addClientToList(ClientList* clientList, Client* client) {
+    //make sure list isnt full
     if (clientList->size >= clientList->capacity) return;
 
     pthread_mutex_lock(&clientList->mutexLock);
@@ -37,13 +38,17 @@ void addClientToList(ClientList* clientList, Client* client) {
 void removeClientFromList(ClientList* client_list, Client* client) {
     pthread_mutex_lock(&client_list->mutexLock);
 
+    //find index of desired client to remove
     int targetIndex = -1;
     for (int i = 0; i < client_list->size; i++) {
         if (client_list->clientBuffer[i] == client) {
             targetIndex = i;
         }
     }
+    //make sure client is in list
     if (targetIndex == -1) return;
+    //free client memory and shift list
+    //then we decrement length
     free(client_list->clientBuffer[targetIndex]);
     for (int i = targetIndex; i < client_list->size; i++) {
         client_list->clientBuffer[i] = client_list->clientBuffer[i + 1];
