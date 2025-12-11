@@ -71,9 +71,9 @@ void sendChatMessages() {
 
 void* receiveMessages(void* arg) {
     uint8_t buffer[1024];
-
     while (1) {
         ssize_t size = recv(clientSocket, buffer, sizeof(buffer), 0);
+        //if data is less than or equal to 0, then connection is lost
         if (size <= 0) {
             if (connected == 1) {
                 printf("Disconnected from server.\n");
@@ -81,56 +81,61 @@ void* receiveMessages(void* arg) {
             }
             return NULL;
         }
-
+        //handle incoming message
         Message message = Deserialize(buffer, size);
         processMessage(&message);
     }
 }
 
-    int createClientSocket(char ip[16]) {
-        struct sockaddr_in server;
-        server.sin_family = AF_INET;
-        if (inet_pton(AF_INET, ip, &server.sin_addr) <= 0) return -1;
-        server.sin_port = htons(8080);
+int createClientSocket(char ip[16]) {
+    //create info to be used to connect to server
+    struct sockaddr_in server;
+    server.sin_family = AF_INET;
+    if (inet_pton(AF_INET, ip, &server.sin_addr) <= 0) return -1;
+    server.sin_port = htons(8080);
 
-        int clientFd = socket(AF_INET, SOCK_STREAM, 0);
-        if (clientFd < 0) {
-            printf(RED "Error creating socket! Error code: %d" RESET "\n", errno);
-            return -1;
-        };
-
-        int isConnected = connect(clientFd, (struct sockaddr*)&server, sizeof(server));
-        if (isConnected < 0) {
-            printf(RED "connect failed. Error code: %d" RESET "\n", errno);
-            if (errno == 111) printf("(connection refused. Server is likely offline.)\n");
-            return -1;
-        }
-        return clientFd;
+    //create socket structure and check for errors
+    int clientFd = socket(AF_INET, SOCK_STREAM, 0);
+    if (clientFd < 0) {
+        printf(RED "Error creating socket! Error code: %d" RESET "\n", errno);
+        return -1;
     }
-    void initClient(int socket, char* username, int color, char* joinPass) {
-        clientSocket = socket;
-        signal(SIGINT, handleSigintClient);
-        connected = 1;
-        char header[] = "REQUEST CONNECT";
-        char recipient[] = "SERVER";
-        strcpy(clientName, username);
+    //connect to server and check for errors
+    int isConnected = connect(clientFd, (struct sockaddr *) &server, sizeof(server));
+    if (isConnected < 0) {
+        printf(RED "connect failed. Error code: %d" RESET "\n", errno);
+        if (errno == 111) printf("(connection refused. Server is likely offline.)\n");
+        return -1;
+    }
+    return clientFd;
+}
+void initClient(int socket, char* username, int color, char* joinPass) {
+    //set up initial data
+    clientSocket = socket;
+    signal(SIGINT, handleSigintClient);
+    connected = 1;
+    char header[] = "REQUEST CONNECT";
+    char recipient[] = "SERVER";
+    strcpy(clientName, username);
 
-        // create a messaging requesting the client join
-        Message message = createMessage(
-            time(NULL),
-            color,
-           clientName,
-            recipient,
-            header,
-            joinPass
-            );
-        uint8_t buffer[1024];
-        Serialize(&message, buffer);
-        send(socket, buffer, sizeof(buffer), 0);
+    // create a messaging requesting the client join
+    Message message = createMessage(
+        time(NULL),
+        color,
+        clientName,
+        recipient,
+        header,
+        joinPass
+    );
+    uint8_t buffer[1024];
+    Serialize(&message, buffer);
+    send(socket, buffer, sizeof(buffer), 0);
 
-        pthread_t recvThread;
-        pthread_create(&recvThread, NULL, receiveMessages, &socket);
-        pthread_detach(recvThread);
-        ClientGetPlayersRequest(clientSocket);
-        sendChatMessages();
+    //create thread to handle incomeing messages
+    pthread_t recvThread;
+    pthread_create(&recvThread, NULL, receiveMessages, &socket);
+    pthread_detach(recvThread);
+    //request info on players and get ready to send messages
+    ClientGetPlayersRequest(clientSocket);
+    sendChatMessages();
 }

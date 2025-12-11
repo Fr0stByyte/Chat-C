@@ -55,7 +55,7 @@ void handleCreate() {
 int main() {
     while (1) {
         char choice[24];
-        printf(BRIGHT_BLUE "Welcome to Chat-C! type 'join' to join a room, or 'create' to create a room! Type 'help' for help! Type 'exit' to exit the program! " RESET);
+        printf(BRIGHT_CYAN "Welcome to Chat-C! type 'join' to join a room, or 'create' to create a room! Type 'help' for help! Type 'exit' to exit the program! " RESET);
         fgets(choice, 24, stdin);
         choice[strcspn(choice, "\n")] = '\0';
         if (strcmp(choice, "join") == 0) handleJoin();

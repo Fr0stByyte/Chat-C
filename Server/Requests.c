@@ -46,7 +46,8 @@ int ServerReceiveJoinRequest(int socket, Message* joinRequest, Client** clientRe
     int nameAllowed = 1;
     int isMuted = 0;
 
-
+    //check if player is banned
+    //if so then nuke connection
     if (checkIPList(serverData->banList, &ipAddress->sin_addr) == 0) {
         char reason[] = "YOU ARE BANNED";
         ServerSendRejectMessage(socket, reason);
@@ -56,7 +57,7 @@ int ServerReceiveJoinRequest(int socket, Message* joinRequest, Client** clientRe
     if (checkIPList(serverData->muteList, &ipAddress->sin_addr) == 0) isMuted = 1;
 
     if (strcmp(serverData->serverPass, joinRequest->body) != 0 && strcmp(serverData->serverPass, "") != 0) {
-        //password is incorrect but is required
+        //password is incorrect and is required
         char reason[] = "INCORRECT PASSWORD";
         ServerSendRejectMessage(socket, reason);
         return 0;
@@ -112,11 +113,13 @@ void ServerReceivePrivateMessage(Client* client, ClientList* client_list, Messag
             targetUser = client_list->clientBuffer[i];
         }
     }
+    //make sure user exists
     if (targetUser == NULL) {
         char serverMsg[] = "User does not exist!";
         ServerSendDirectMessage(client, serverMsg);
         return;
     }
+    //create message to send to target
     char header[] = "RECEIVE PRIVATE";
     Message messageToSend = createMessage(
         time(NULL),
@@ -126,6 +129,7 @@ void ServerReceivePrivateMessage(Client* client, ClientList* client_list, Messag
         header,
         (char*)message->body
     );
+    //send it away
     printf("%s" "[PRIVATE][%s]->[%s]: %s" RESET "\n", colorArray[client->color], client->name, messageToSend.recipientName, messageToSend.body);
     uint8_t buffer[1024];
     Serialize(&messageToSend, buffer);
@@ -133,25 +137,30 @@ void ServerReceivePrivateMessage(Client* client, ClientList* client_list, Messag
 }
 
 void ServerReceivePlayersRequest(Client* client) {
+    //start creating response
     ServerData* serverData = getServerData();
     pthread_mutex_lock(&serverData->serverDataMutex);
     char players[1024];
     sprintf(players, "%d", serverData->clientList->size);
     strcat(players, " Active Users: ");
 
+    //put all player names in one string
     for (int i = 0; i < serverData->clientList->size; i++) {
         strncat(players, serverData->clientList->clientBuffer[i]->name, 24);
         strncat(players, ", ", 1);
     }
+    //send response to client
     ServerSendDirectMessage(client, players);
     pthread_mutex_unlock(&serverData->serverDataMutex);
 }
 
 void ServerReceiveColorRequest(Client* client, int color) {
+    //make sure color is valid
     if (color < 0 || color > 15) {
         ServerSendDirectMessage(client, "invalid color id");
         return;
     }
+    //change color and send confirmation to server
     client->color = color;
     ServerSendDirectMessage(client, "color changed");
 }

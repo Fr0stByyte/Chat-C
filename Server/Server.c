@@ -139,11 +139,15 @@ void* handleConnections(void* data) {
             printf(RED "Could not accept connection: %d" RESET "\n", errno);
             if (errno == EINVAL) printf("(One of the arguments for accept() is invalid, ignore if this appears after shutdown)\n");
         }
-        ConnectionData connectionData = {};
-        connectionData.clientFd = clientSocket;
-        connectionData.clientAddr = client_addr;
+        //create structure to hold address and socket
+        //needs to be dynamically allocated, otherwise could go out of scope before thread reads it
+        ConnectionData* connectionData = (ConnectionData*)malloc(sizeof(ConnectionData));
+        connectionData->clientFd = clientSocket;
+        connectionData->clientAddr = client_addr;
+
+        //creates thread to handle request
         pthread_t tid;
-        pthread_create(&tid, NULL, handleConnectionRequest, &connectionData);
+        pthread_create(&tid, NULL, handleConnectionRequest, connectionData);
         pthread_detach(tid);
     }
     return NULL;
@@ -175,6 +179,7 @@ void* handleConnectionRequest(void* data) {
         close(connectionData->clientFd);
     }
     //thread terminates after work is done, handleClient still runs
+    free(connectionData);
     return NULL;
 }
 void* handleClient(void* data) {
@@ -187,13 +192,14 @@ void* handleClient(void* data) {
         Message clientMessage = Deserialize(buffer, dataSize);
         ProcessRequest(&clientMessage, client);
     }
+    //client has disconnected from server
     ServerReceiveDisconnectRequest(client, serverData.clientList);
     shutdown(client->clientFd, SHUT_RDWR);
     close(client->clientFd);
     return NULL;
 }
 void ProcessRequest(Message* receivedMessage, Client* client) {
-    //calls fucntions based on header
+    //check if client can speak
     if (client->isMuted == 1) {
         char muteMessage[] = "You are muted!";
         ServerSendDirectMessage(client, muteMessage);
@@ -202,13 +208,14 @@ void ProcessRequest(Message* receivedMessage, Client* client) {
 
     for(int i = 0; i < lineCount; i++)
     {
+        //cant have any bad words in our christian Chat-C server
         if (strcasestr((char*)receivedMessage->body, serverData.serverBlacklist[i]) != NULL) {
             char serverMsg[] = "phrase is blacklisted!";
             ServerSendDirectMessage(client, serverMsg);
             return;
         }
     }
-
+    //uses header to decide how message should be handled
     if (strcmp(receivedMessage->header, "SEND GLOBAL") == 0) ServerReceiveGlobalMessage(client, serverData.clientList, receivedMessage);
     if (strcmp(receivedMessage->header, "SEND PRIVATE") == 0) ServerReceivePrivateMessage(client, serverData.clientList, receivedMessage);
     if (strcmp(receivedMessage->header, "REQUEST PLAYERS") == 0) ServerReceivePlayersRequest(client);

@@ -58,7 +58,6 @@ void Serialize(Message* message, uint8_t data[1024]);
  * deserializes data from an array back into a message structure. used after data is recieved from a socket
  * @param[in] data pointer to array where serialized data is stored
  * @param[in] dataSize size of data that should be deserialized
- * @param[out] signal pointer for variable that will store errors
  * @return message struct with deserialized values
  */
 Message Deserialize(uint8_t data[1024], ssize_t dataSize);
@@ -75,7 +74,7 @@ Message Deserialize(uint8_t data[1024], ssize_t dataSize);
  */
 Message createMessage(time_t timeStamp, int color, char* sender, char* recipient, char* header, char* body);
 /**
- * clears a buffer, probs won't use tho
+ * clears a buffer, might not be used
  * @param[in] buffer array storing data to be cleared
  * @param[in] size size of buffer
  */

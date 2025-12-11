@@ -14,11 +14,15 @@
  * @param[in] client pointer to the client object which will be added
  */
 void addClientToList(ClientList* clientList, Client* client);
+
 /**
- * Creates a client object on the heap
- * @param[in] clientFd clients socket
- * @param[in] clientAddress stores client data such as ip
- * @return pointer to newly created client object
+ * Allocates a new client object
+ * @param clientFd clients socket
+ * @param clientName name of client
+ * @param clientColor color id of client
+ * @param ipAddress client descriptor storing ip address
+ * @param muteState tells server if client is muted or not
+ * @return Client object
  */
 Client* CreateClient(int clientFd, char* clientName, int clientColor, struct sockaddr_in* ipAddress, int muteState);
 /**
@@ -27,5 +31,11 @@ Client* CreateClient(int clientFd, char* clientName, int clientColor, struct soc
  * @return pointer to newly created client list
  */
 ClientList* CreateClientList(int capacity);
+
+/**
+ * removes a client from a clientlist
+ * @param client_list client list to remove client on
+ * @param client client that should be removed
+ */
 void removeClientFromList(ClientList* client_list, Client* client);
 
