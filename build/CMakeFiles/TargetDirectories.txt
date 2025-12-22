@@ -1,0 +1,3 @@
+/home/kellen/Chat-C/build/CMakeFiles/Chat_C.dir
+/home/kellen/Chat-C/build/CMakeFiles/edit_cache.dir
+/home/kellen/Chat-C/build/CMakeFiles/rebuild_cache.dir
